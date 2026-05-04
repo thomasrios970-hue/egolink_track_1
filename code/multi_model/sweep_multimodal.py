@@ -74,32 +74,52 @@ def build_parser():
 
 
 def candidate_pool():
-    # 第一组是当前已知表现最好的 hubert+clip 配置，后面做随机搜索。
+    # 第一组是当前 emotion_sort 已知表现最稳的 hubert-large+clip-p14 配置，
+    # 后面围绕正则、融合头深度和不平衡策略做随机搜索。
     anchor = {
         "batch_size": 128,
-        "lr": 3e-4,
-        "weight_decay": 1e-3,
-        "hidden_dim": 512,
-        "dropout": 0.4,
-        "label_smoothing": 0.05,
+        "lr": 1e-4,
+        "weight_decay": 5e-3,
+        "hidden_dim": 256,
+        "dropout": 0.5,
+        "label_smoothing": 0.1,
         "grad_clip": 1.0,
+        "modality_dropout": 0.15,
+        "num_layers": 1,
+        "loss": "ce",
+        "focal_gamma": 2.0,
+        "class_weight": "none",
+        "sampler": "none",
     }
 
     grid = {
-        "batch_size": [64, 128, 256],
-        "lr": [1e-4, 2e-4, 3e-4, 5e-4, 8e-4],
-        "weight_decay": [1e-4, 3e-4, 1e-3, 3e-3],
-        "hidden_dim": [256, 512, 768],
-        "dropout": [0.2, 0.3, 0.4, 0.5],
-        "label_smoothing": [0.0, 0.03, 0.05, 0.08, 0.1],
-        "grad_clip": [0.0, 1.0],
+        "batch_size": [96, 128, 192],
+        "lr": [6e-5, 1e-4, 2e-4, 3e-4],
+        "weight_decay": [1e-3, 3e-3, 5e-3, 8e-3],
+        "hidden_dim": [256, 384, 512],
+        "dropout": [0.35, 0.45, 0.5, 0.55],
+        "label_smoothing": [0.03, 0.05, 0.08, 0.1],
+        "grad_clip": [1.0],
+        "modality_dropout": [0.0, 0.1, 0.15, 0.25],
+        "num_layers": [1, 2],
     }
+    imbalance_settings = [
+        {"loss": "ce", "focal_gamma": 2.0, "class_weight": "none", "sampler": "none"},
+        {"loss": "ce", "focal_gamma": 2.0, "class_weight": "sqrt_inv", "sampler": "none"},
+        {"loss": "ce", "focal_gamma": 2.0, "class_weight": "effective", "sampler": "none"},
+        {"loss": "ce", "focal_gamma": 2.0, "class_weight": "none", "sampler": "sqrt_inv"},
+        {"loss": "focal", "focal_gamma": 1.5, "class_weight": "sqrt_inv", "sampler": "none"},
+        {"loss": "focal", "focal_gamma": 2.0, "class_weight": "sqrt_inv", "sampler": "sqrt_inv"},
+    ]
 
     keys = list(grid)
     candidates = []
     for values in itertools.product(*[grid[key] for key in keys]):
-        candidate = dict(zip(keys, values))
-        candidates.append(candidate)
+        base_candidate = dict(zip(keys, values))
+        for imbalance in imbalance_settings:
+            candidate = dict(base_candidate)
+            candidate.update(imbalance)
+            candidates.append(candidate)
 
     return anchor, candidates
 
@@ -150,6 +170,18 @@ def build_command(args, candidate, trial_index):
         f"{candidate['label_smoothing']:g}",
         "--grad-clip",
         f"{candidate['grad_clip']:g}",
+        "--modality-dropout",
+        f"{candidate['modality_dropout']:g}",
+        "--num-layers",
+        str(candidate["num_layers"]),
+        "--loss",
+        candidate["loss"],
+        "--focal-gamma",
+        f"{candidate['focal_gamma']:g}",
+        "--class-weight",
+        candidate["class_weight"],
+        "--sampler",
+        candidate["sampler"],
         "--early-stop-patience",
         str(args.early_stop_patience),
         "--seed",
