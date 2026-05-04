@@ -52,6 +52,7 @@ FEATURE_ROOT = Path("/data/wzw/egolink_race/feature")
 FEATURE_GROUP_DIRS = [
     FEATURE_ROOT / "audio_features",
     FEATURE_ROOT / "txt_features",
+    FEATURE_ROOT / "target_txt_features",
     FEATURE_ROOT / "visual_features",
 ]
 FEATURE_GROUP_NAMES = {path.name for path in FEATURE_GROUP_DIRS}
@@ -61,6 +62,7 @@ FEATURE_LEVEL_DIRS = {
 FEATURE_ALIASES = {
     "hubert": Path("/data/wzw/egolink_race/feature/audio_features/chinese-hubert-large"),
     "macbert": Path("/data/wzw/egolink_race/feature/txt_features/chinese-macbert-large"),
+    "target_text": Path("/data/wzw/egolink_race/feature/target_txt_features/xlm-roberta-xl"),
     "clip": Path("/data/wzw/egolink_race/feature/visual_features/clip-vit-large-patch14"),
 }
 DEFAULT_CHECKPOINT_ROOT = Path("/data/wzw/egolink_race/checkpoints")
@@ -72,6 +74,7 @@ OUTPUT_TASK_DIRS = {
 FEATURE_LOG_GROUPS = {
     "audio_features": "audio",
     "txt_features": "txt",
+    "target_txt_features": "target_txt",
     "visual_features": "visual",
     "custom_features": "custom",
 }
@@ -284,6 +287,12 @@ def build_parser():
     )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num-workers", type=non_negative_int, default=4)
+    parser.add_argument(
+        "--prediction-dir",
+        type=Path,
+        default=None,
+        help="可选：保存 val/test 概率 JSONL，供冲突子集分析和跨模型集成使用。",
+    )
     return parser
 
 
@@ -366,6 +375,29 @@ def find_feature_path(feature_root, vid, sub_id, feature_level):
     return None
 
 
+def get_row_id(row, row_index):
+    if "row_id" in row and not pd.isna(row["row_id"]):
+        text = str(row["row_id"]).strip()
+        if text:
+            return text
+    return f"row_{int(row_index):06d}"
+
+
+def is_row_aware_feature_root(feature_root):
+    return "target_txt_features" in Path(feature_root).parts
+
+
+def find_row_feature_path(feature_root, row_id, feature_level):
+    candidates = []
+    for level_dir in get_level_dirs(feature_level):
+        candidates.append(feature_root / level_dir / f"{row_id}.npy")
+    candidates.append(feature_root / f"{row_id}.npy")
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
+
+
 def infer_feature_level(path):
     path_parts = {part.upper() for part in Path(path).parts}
     if "UTTERANCE" in path_parts or "UTT" in path_parts:
@@ -384,18 +416,24 @@ def build_dataframe(manifest_path, feature_root, task, label_map, feature_level=
     split_total = df["split"].value_counts().to_dict()
     split_usable = {}
 
-    for _, row in df.iterrows():
+    row_aware = is_row_aware_feature_root(feature_root)
+    for row_index, row in df.iterrows():
         label = get_label(row, task)
         if label not in label_map:
             raise ValueError(f"unsupported label: {label}")
 
         vid = str(row["Vid"])
         sub_id = str(row["sub_id"])
-        feature_path = find_feature_path(feature_root, vid, sub_id, feature_level)
+        row_id = get_row_id(row, row_index)
+        if row_aware:
+            feature_path = find_row_feature_path(feature_root, row_id, feature_level)
+        else:
+            feature_path = find_feature_path(feature_root, vid, sub_id, feature_level)
         if feature_path is None:
             continue
 
         item = row.to_dict()
+        item["row_id"] = row_id
         item["feature_path"] = str(feature_path)
         item["feature_level"] = infer_feature_level(feature_path)
         item["label_id"] = label_map[label]
@@ -661,6 +699,53 @@ def evaluate(model, loader, device, torch, num_classes, label_names=None, focus_
         label_names=label_names,
         focus_labels=focus_labels,
     )
+
+
+def predict(model, loader, device, torch):
+    model.eval()
+    probs = []
+    labels = []
+    with torch.no_grad():
+        for x, y in loader:
+            x = x.to(device)
+            logits = model(x)
+            prob = torch.softmax(logits, dim=1).cpu().numpy()
+            probs.append(prob)
+            labels.extend(y.numpy().tolist())
+    return np.asarray(labels, dtype=np.int64), np.concatenate(probs, axis=0)
+
+
+def save_probability_jsonl(path, df, labels, probs, label_names, split_name):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    labels = np.asarray(labels, dtype=np.int64)
+    probs = np.asarray(probs, dtype=np.float64)
+    if len(df) != len(labels) or len(df) != len(probs):
+        raise ValueError(
+            f"prediction length mismatch for {split_name}: "
+            f"df={len(df)} labels={len(labels)} probs={len(probs)}"
+        )
+    with path.open("w", encoding="utf-8") as f:
+        for idx, (_, row) in enumerate(df.iterrows()):
+            pred_id = int(np.argmax(probs[idx]))
+            item = {
+                "row_id": str(row.get("row_id", f"row_{idx:06d}")),
+                "Vid": str(row.get("Vid", "")),
+                "sub_id": str(row.get("sub_id", "")),
+                "person": str(row.get("person", "")),
+                "split": str(row.get("split", split_name)),
+                "label_id": int(labels[idx]),
+                "label_name": label_names[int(labels[idx])],
+                "pred_id": pred_id,
+                "pred_label": label_names[pred_id],
+                "probabilities": {
+                    label_names[cls]: float(probs[idx, cls])
+                    for cls in range(len(label_names))
+                },
+                "probabilities_list": [
+                    float(probs[idx, cls]) for cls in range(len(label_names))
+                ],
+            }
+            f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
 
 def save_json(path, data):
@@ -1018,12 +1103,24 @@ def run_single_modality(args, started_at, all_mode, torch, nn, DataLoader):
         "feature_normalization": args.feature_normalization,
         "history": history,
     }
+    prediction_paths = {}
+    if args.prediction_dir is not None:
+        val_labels, val_probs = predict(model, val_loader, device, torch)
+        test_labels, test_probs = predict(model, test_loader, device, torch)
+        val_prediction_path = args.prediction_dir / f"{run_stem}__val_probs.jsonl"
+        test_prediction_path = args.prediction_dir / f"{run_stem}__test_probs.jsonl"
+        save_probability_jsonl(val_prediction_path, val_df, val_labels, val_probs, label_names, "val")
+        save_probability_jsonl(test_prediction_path, test_df, test_labels, test_probs, label_names, "test")
+        prediction_paths = {"val": str(val_prediction_path), "test": str(test_prediction_path)}
+        metrics["prediction_paths"] = prediction_paths
+        print("Prediction probabilities:", prediction_paths)
     config.update(
         {
             "checkpoint_path": str(checkpoint_path),
             "config_path": str(config_path),
             "metrics_path": str(metrics_path),
             "run_stem": run_stem,
+            "prediction_paths": prediction_paths,
         }
     )
     save_json(config_path, json_safe(config))
