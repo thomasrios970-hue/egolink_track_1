@@ -1,0 +1,56 @@
+[1/1] start features={'hubert': 'chinese-hubert-large', 'macbert': 'xlm-roberta-xl', 'target_text': 'xlm-roberta-xl', 'clip': 'clip-vit-large-patch14'}
+================================================================================
+modalities: hubert,macbert,target_text,clip
+output_task_dir: emotion_sort
+feature_names: {'hubert': 'chinese-hubert-large', 'macbert': 'xlm-roberta-xl', 'target_text': 'xlm-roberta-xl', 'clip': 'clip-vit-large-patch14'}
+feature_roots: {'hubert': '/data/wzw/egolink_race/feature/audio_features/chinese-hubert-large', 'macbert': '/data/wzw/egolink_race/feature/txt_features/xlm-roberta-xl', 'target_text': '/data/wzw/egolink_race/feature/target_txt_features/xlm-roberta-xl', 'clip': '/data/wzw/egolink_race/feature/visual_features/clip-vit-large-patch14'}
+fusion: attention
+training_mode: flat
+save_dir: /data/wzw/egolink_race/checkpoints/emotion_sort/multi_model/attention_chinese-hubert-large+xlm-roberta-xl+xlm-roberta-xl+clip-vit-large-patch14
+log_dir: /data/wzw/egolink_race/log/emotion_sort/muti_model
+train: usable=13017, missing=2, total=13019
+val: usable=1663, missing=0, total=1663
+test: usable=1625, missing=0, total=1625
+feature_dims: {'hubert': 1024, 'macbert': 2560, 'target_text': 2560, 'clip': 1024}
+device: cuda:0
+cv_folds: 1
+feature_normalization: zscore
+modality_dropout: 0.0
+imbalance: {'loss': 'ce', 'class_weight': 'none', 'sampler': 'none', 'class_weight_beta': 0.999, 'class_weight_max': 5.0}
+run computing per-modality train z-score stats...
+run epoch=01 lr=1.00e-04 train_acc=0.5803 train_weighted_f1=0.5333 train_macro_f1=0.2942 val_acc=0.5394 val_weighted_f1=0.4914 val_macro_f1=0.2770 test_acc=0.5532 test_weighted_f1=0.5035 test_macro_f1=0.2700 test_attention: hubert=0.3339 macbert=0.1272 target_text=0.1793 clip=0.3596
+run saved current best: epoch=1 val_acc=0.5394 best_val_acc=0.5394
+run epoch=02 lr=2.00e-04 train_acc=0.6787 train_weighted_f1=0.6638 train_macro_f1=0.5189 val_acc=0.5755 val_weighted_f1=0.5506 val_macro_f1=0.4048 test_acc=0.5772 test_weighted_f1=0.5582 test_macro_f1=0.4084 test_attention: hubert=0.3278 macbert=0.1689 target_text=0.1888 clip=0.3145
+run saved current best: epoch=2 val_acc=0.5755 best_val_acc=0.5755
+run epoch=03 lr=3.00e-04 train_acc=0.7011 train_weighted_f1=0.6805 train_macro_f1=0.5461 val_acc=0.5683 val_weighted_f1=0.5338 val_macro_f1=0.3769 test_acc=0.5637 test_weighted_f1=0.5301 test_macro_f1=0.3721 test_attention: hubert=0.2726 macbert=0.1623 target_text=0.2077 clip=0.3574
+run epoch=04 lr=3.00e-04 train_acc=0.7657 train_weighted_f1=0.7583 train_macro_f1=0.6843 val_acc=0.5652 val_weighted_f1=0.5419 val_macro_f1=0.3929 test_acc=0.5717 test_weighted_f1=0.5489 test_macro_f1=0.3999 test_attention: hubert=0.2493 macbert=0.2126 target_text=0.2229 clip=0.3153
+run epoch=05 lr=3.00e-04 train_acc=0.8245 train_weighted_f1=0.8245 train_macro_f1=0.7906 val_acc=0.5520 val_weighted_f1=0.5468 val_macro_f1=0.4248 test_acc=0.5600 test_weighted_f1=0.5507 test_macro_f1=0.4157 test_attention: hubert=0.2803 macbert=0.1806 target_text=0.2116 clip=0.3275
+run epoch=06 lr=2.99e-04 train_acc=0.8434 train_weighted_f1=0.8432 train_macro_f1=0.8199 val_acc=0.5532 val_weighted_f1=0.5464 val_macro_f1=0.4355 test_acc=0.5569 test_weighted_f1=0.5488 test_macro_f1=0.4167 test_attention: hubert=0.2573 macbert=0.1864 target_text=0.2432 clip=0.3131
+run epoch=07 lr=2.98e-04 train_acc=0.8815 train_weighted_f1=0.8816 train_macro_f1=0.8708 val_acc=0.5412 val_weighted_f1=0.5382 val_macro_f1=0.4365 test_acc=0.5458 test_weighted_f1=0.5421 test_macro_f1=0.4305 test_attention: hubert=0.2190 macbert=0.2056 target_text=0.2419 clip=0.3334
+run epoch=08 lr=2.97e-04 train_acc=0.8802 train_weighted_f1=0.8792 train_macro_f1=0.8756 val_acc=0.5532 val_weighted_f1=0.5361 val_macro_f1=0.4211 test_acc=0.5600 test_weighted_f1=0.5442 test_macro_f1=0.4027 test_attention: hubert=0.2370 macbert=0.2304 target_text=0.2310 clip=0.3017
+run epoch=09 lr=2.96e-04 train_acc=0.8936 train_weighted_f1=0.8929 train_macro_f1=0.8890 val_acc=0.5454 val_weighted_f1=0.5292 val_macro_f1=0.4133 test_acc=0.5588 test_weighted_f1=0.5461 test_macro_f1=0.4136 test_attention: hubert=0.2230 macbert=0.2279 target_text=0.2621 clip=0.2870
+run epoch=10 lr=2.95e-04 train_acc=0.8924 train_weighted_f1=0.8913 train_macro_f1=0.8846 val_acc=0.5496 val_weighted_f1=0.5333 val_macro_f1=0.4212 test_acc=0.5637 test_weighted_f1=0.5463 test_macro_f1=0.4131 test_attention: hubert=0.2277 macbert=0.2295 target_text=0.2465 clip=0.2962
+run epoch=11 lr=2.93e-04 train_acc=0.9129 train_weighted_f1=0.9128 train_macro_f1=0.9066 val_acc=0.5514 val_weighted_f1=0.5433 val_macro_f1=0.4098 test_acc=0.5477 test_weighted_f1=0.5426 test_macro_f1=0.4220 test_attention: hubert=0.2248 macbert=0.2185 target_text=0.2658 clip=0.2910
+run epoch=12 lr=2.91e-04 train_acc=0.9193 train_weighted_f1=0.9191 train_macro_f1=0.9146 val_acc=0.5436 val_weighted_f1=0.5384 val_macro_f1=0.4249 test_acc=0.5514 test_weighted_f1=0.5453 test_macro_f1=0.4187 test_attention: hubert=0.2214 macbert=0.2189 target_text=0.2638 clip=0.2960
+run epoch=13 lr=2.89e-04 train_acc=0.9199 train_weighted_f1=0.9199 train_macro_f1=0.9131 val_acc=0.5514 val_weighted_f1=0.5446 val_macro_f1=0.4326 test_acc=0.5495 test_weighted_f1=0.5400 test_macro_f1=0.4074 test_attention: hubert=0.2092 macbert=0.2292 target_text=0.2662 clip=0.2955
+run epoch=14 lr=2.87e-04 train_acc=0.9198 train_weighted_f1=0.9194 train_macro_f1=0.9154 val_acc=0.5550 val_weighted_f1=0.5404 val_macro_f1=0.4439 test_acc=0.5723 test_weighted_f1=0.5580 test_macro_f1=0.4291 test_attention: hubert=0.2266 macbert=0.2149 target_text=0.2819 clip=0.2766
+run epoch=15 lr=2.84e-04 train_acc=0.9213 train_weighted_f1=0.9210 train_macro_f1=0.9186 val_acc=0.5502 val_weighted_f1=0.5407 val_macro_f1=0.4448 test_acc=0.5526 test_weighted_f1=0.5425 test_macro_f1=0.4183 test_attention: hubert=0.2064 macbert=0.2332 target_text=0.2901 clip=0.2704
+run epoch=16 lr=2.81e-04 train_acc=0.9266 train_weighted_f1=0.9264 train_macro_f1=0.9211 val_acc=0.5472 val_weighted_f1=0.5405 val_macro_f1=0.4456 test_acc=0.5403 test_weighted_f1=0.5329 test_macro_f1=0.4211 test_attention: hubert=0.2206 macbert=0.2163 target_text=0.2829 clip=0.2802
+run epoch=17 lr=2.79e-04 train_acc=0.9279 train_weighted_f1=0.9277 train_macro_f1=0.9227 val_acc=0.5442 val_weighted_f1=0.5351 val_macro_f1=0.4154 test_acc=0.5495 test_weighted_f1=0.5424 test_macro_f1=0.4168 test_attention: hubert=0.2076 macbert=0.2286 target_text=0.2770 clip=0.2868
+run early stopped: no val_acc improvement for 15 epochs
+Best epoch: 2
+Selection metric: val_acc
+Best selection score: 0.5754660252555622
+Test acc: 0.592
+Test macro_f1: 0.42038942338681007
+Test weighted_f1: 0.5669065034048762
+test_attention: hubert=0.2832 macbert=0.1812 target_text=0.2065 clip=0.3291
+Checkpoints: /data/wzw/egolink_race/checkpoints/emotion_sort/multi_model/attention_chinese-hubert-large+xlm-roberta-xl+xlm-roberta-xl+clip-vit-large-patch14/20260504_113027__mods-hubert-large+xlm-r-xl+xlm-r-xl+clip-p14__fusion-attention__mode-flat__WAF-0.5669__ACC-0.5920.pt
+Config: /data/wzw/egolink_race/checkpoints/emotion_sort/multi_model/attention_chinese-hubert-large+xlm-roberta-xl+xlm-roberta-xl+clip-vit-large-patch14/20260504_113027__mods-hubert-large+xlm-r-xl+xlm-r-xl+clip-p14__fusion-attention__mode-flat__WAF-0.5669__ACC-0.5920.config.json
+Metrics: /data/wzw/egolink_race/checkpoints/emotion_sort/multi_model/attention_chinese-hubert-large+xlm-roberta-xl+xlm-roberta-xl+clip-vit-large-patch14/20260504_113027__mods-hubert-large+xlm-r-xl+xlm-r-xl+clip-p14__fusion-attention__mode-flat__WAF-0.5669__ACC-0.5920.metrics.json
+Result log: /data/wzw/egolink_race/log/emotion_sort/muti_model/20260504_113027__mods-hubert-large+xlm-r-xl+xlm-r-xl+clip-p14__fusion-attention__mode-flat__WAF-0.5669__ACC-0.5920.txt
+Done
+total=1
+success=1
+failed=0
+{'hubert': 'chinese-hubert-large', 'macbert': 'xlm-roberta-xl', 'target_text': 'xlm-roberta-xl', 'clip': 'clip-vit-large-patch14'}: ACC=0.5920, macro=0.4204, weighted=0.5669, log=/data/wzw/egolink_race/log/emotion_sort/muti_model/20260504_113027__mods-hubert-large+xlm-r-xl+xlm-r-xl+clip-p14__fusion-attention__mode-flat__WAF-0.5669__ACC-0.5920.txt

@@ -1,0 +1,56 @@
+[1/1] start features={'hubert': 'chinese-hubert-large', 'clip': 'clip-vit-large-patch14-336'}
+================================================================================
+modalities: hubert,clip
+output_task_dir: emotion_sort
+feature_names: {'hubert': 'chinese-hubert-large', 'clip': 'clip-vit-large-patch14-336'}
+feature_roots: {'hubert': '/data/wzw/egolink_race/feature/audio_features/chinese-hubert-large', 'clip': '/data/wzw/egolink_race/feature/visual_features/clip-vit-large-patch14-336'}
+fusion: attention
+training_mode: flat
+save_dir: /data/wzw/egolink_race/checkpoints/emotion_sort/multi_model/attention_chinese-hubert-large+clip-vit-large-patch14-336
+log_dir: /data/wzw/egolink_race/log/emotion_sort/muti_model
+train: usable=13017, missing=2, total=13019
+val: usable=1663, missing=0, total=1663
+test: usable=1625, missing=0, total=1625
+feature_dims: {'hubert': 1024, 'clip': 1024}
+device: cuda:0
+cv_folds: 1
+feature_normalization: zscore
+modality_dropout: 0.0
+imbalance: {'loss': 'ce', 'class_weight': 'none', 'sampler': 'none', 'class_weight_beta': 0.999, 'class_weight_max': 5.0}
+run computing per-modality train z-score stats...
+run epoch=01 lr=1.00e-04 train_acc=0.5577 train_weighted_f1=0.5118 train_macro_f1=0.2860 val_acc=0.5376 val_weighted_f1=0.4896 val_macro_f1=0.2825 test_acc=0.5354 test_weighted_f1=0.4914 test_macro_f1=0.2920 test_attention: hubert=0.4895 clip=0.5105
+run saved current best: epoch=1 val_acc=0.5376 best_val_acc=0.5376
+run epoch=02 lr=2.00e-04 train_acc=0.6180 train_weighted_f1=0.5897 train_macro_f1=0.4017 val_acc=0.5538 val_weighted_f1=0.5213 val_macro_f1=0.3431 test_acc=0.5526 test_weighted_f1=0.5254 test_macro_f1=0.3442 test_attention: hubert=0.4887 clip=0.5113
+run saved current best: epoch=2 val_acc=0.5538 best_val_acc=0.5538
+run epoch=03 lr=3.00e-04 train_acc=0.6584 train_weighted_f1=0.6427 train_macro_f1=0.5212 val_acc=0.5400 val_weighted_f1=0.5115 val_macro_f1=0.3594 test_acc=0.5588 test_weighted_f1=0.5401 test_macro_f1=0.4001 test_attention: hubert=0.4367 clip=0.5633
+run epoch=04 lr=3.00e-04 train_acc=0.6996 train_weighted_f1=0.6873 train_macro_f1=0.5862 val_acc=0.5430 val_weighted_f1=0.5182 val_macro_f1=0.3865 test_acc=0.5668 test_weighted_f1=0.5471 test_macro_f1=0.4168 test_attention: hubert=0.4499 clip=0.5501
+run epoch=05 lr=3.00e-04 train_acc=0.7250 train_weighted_f1=0.7151 train_macro_f1=0.6460 val_acc=0.5466 val_weighted_f1=0.5225 val_macro_f1=0.4033 test_acc=0.5680 test_weighted_f1=0.5462 test_macro_f1=0.4179 test_attention: hubert=0.4361 clip=0.5639
+run epoch=06 lr=2.99e-04 train_acc=0.7480 train_weighted_f1=0.7404 train_macro_f1=0.6968 val_acc=0.5448 val_weighted_f1=0.5232 val_macro_f1=0.4015 test_acc=0.5532 test_weighted_f1=0.5322 test_macro_f1=0.4251 test_attention: hubert=0.4745 clip=0.5255
+run epoch=07 lr=2.98e-04 train_acc=0.7780 train_weighted_f1=0.7735 train_macro_f1=0.7237 val_acc=0.5442 val_weighted_f1=0.5279 val_macro_f1=0.4023 test_acc=0.5551 test_weighted_f1=0.5378 test_macro_f1=0.4033 test_attention: hubert=0.4333 clip=0.5667
+run epoch=08 lr=2.97e-04 train_acc=0.7959 train_weighted_f1=0.7950 train_macro_f1=0.7598 val_acc=0.5448 val_weighted_f1=0.5384 val_macro_f1=0.4255 test_acc=0.5409 test_weighted_f1=0.5321 test_macro_f1=0.3918 test_attention: hubert=0.4668 clip=0.5332
+run epoch=09 lr=2.96e-04 train_acc=0.8092 train_weighted_f1=0.8075 train_macro_f1=0.7850 val_acc=0.5225 val_weighted_f1=0.5089 val_macro_f1=0.3956 test_acc=0.5477 test_weighted_f1=0.5343 test_macro_f1=0.3967 test_attention: hubert=0.4546 clip=0.5454
+run epoch=10 lr=2.95e-04 train_acc=0.8294 train_weighted_f1=0.8295 train_macro_f1=0.8175 val_acc=0.5195 val_weighted_f1=0.5157 val_macro_f1=0.3961 test_acc=0.5366 test_weighted_f1=0.5330 test_macro_f1=0.4289 test_attention: hubert=0.4671 clip=0.5329
+run epoch=11 lr=2.93e-04 train_acc=0.8385 train_weighted_f1=0.8376 train_macro_f1=0.8278 val_acc=0.5304 val_weighted_f1=0.5215 val_macro_f1=0.4213 test_acc=0.5495 test_weighted_f1=0.5421 test_macro_f1=0.4316 test_attention: hubert=0.4256 clip=0.5744
+run epoch=12 lr=2.91e-04 train_acc=0.8527 train_weighted_f1=0.8526 train_macro_f1=0.8348 val_acc=0.5268 val_weighted_f1=0.5210 val_macro_f1=0.4038 test_acc=0.5422 test_weighted_f1=0.5321 test_macro_f1=0.4034 test_attention: hubert=0.4420 clip=0.5580
+run epoch=13 lr=2.89e-04 train_acc=0.8479 train_weighted_f1=0.8463 train_macro_f1=0.8316 val_acc=0.5292 val_weighted_f1=0.5157 val_macro_f1=0.3941 test_acc=0.5458 test_weighted_f1=0.5312 test_macro_f1=0.4031 test_attention: hubert=0.4550 clip=0.5450
+run epoch=14 lr=2.87e-04 train_acc=0.8506 train_weighted_f1=0.8496 train_macro_f1=0.8364 val_acc=0.5286 val_weighted_f1=0.5150 val_macro_f1=0.3932 test_acc=0.5465 test_weighted_f1=0.5329 test_macro_f1=0.4007 test_attention: hubert=0.4723 clip=0.5277
+run epoch=15 lr=2.84e-04 train_acc=0.8582 train_weighted_f1=0.8581 train_macro_f1=0.8413 val_acc=0.5274 val_weighted_f1=0.5192 val_macro_f1=0.4000 test_acc=0.5415 test_weighted_f1=0.5324 test_macro_f1=0.4195 test_attention: hubert=0.4508 clip=0.5492
+run epoch=16 lr=2.81e-04 train_acc=0.8657 train_weighted_f1=0.8654 train_macro_f1=0.8501 val_acc=0.5334 val_weighted_f1=0.5258 val_macro_f1=0.4206 test_acc=0.5446 test_weighted_f1=0.5376 test_macro_f1=0.4135 test_attention: hubert=0.4645 clip=0.5355
+run epoch=17 lr=2.79e-04 train_acc=0.8660 train_weighted_f1=0.8657 train_macro_f1=0.8526 val_acc=0.5250 val_weighted_f1=0.5167 val_macro_f1=0.3958 test_acc=0.5446 test_weighted_f1=0.5360 test_macro_f1=0.4118 test_attention: hubert=0.4806 clip=0.5194
+run early stopped: no val_acc improvement for 15 epochs
+Best epoch: 2
+Selection metric: val_acc
+Best selection score: 0.5538184004810583
+Test acc: 0.5729230769230769
+Test macro_f1: 0.40894309073915475
+Test weighted_f1: 0.5543729487451787
+test_attention: hubert=0.4639 clip=0.5361
+Checkpoints: /data/wzw/egolink_race/checkpoints/emotion_sort/multi_model/attention_chinese-hubert-large+clip-vit-large-patch14-336/20260504_113241__mods-hubert-large+clip-p14-336__fusion-attention__mode-flat__WAF-0.5544__ACC-0.5729.pt
+Config: /data/wzw/egolink_race/checkpoints/emotion_sort/multi_model/attention_chinese-hubert-large+clip-vit-large-patch14-336/20260504_113241__mods-hubert-large+clip-p14-336__fusion-attention__mode-flat__WAF-0.5544__ACC-0.5729.config.json
+Metrics: /data/wzw/egolink_race/checkpoints/emotion_sort/multi_model/attention_chinese-hubert-large+clip-vit-large-patch14-336/20260504_113241__mods-hubert-large+clip-p14-336__fusion-attention__mode-flat__WAF-0.5544__ACC-0.5729.metrics.json
+Result log: /data/wzw/egolink_race/log/emotion_sort/muti_model/20260504_113241__mods-hubert-large+clip-p14-336__fusion-attention__mode-flat__WAF-0.5544__ACC-0.5729.txt
+Done
+total=1
+success=1
+failed=0
+{'hubert': 'chinese-hubert-large', 'clip': 'clip-vit-large-patch14-336'}: ACC=0.5729, macro=0.4089, weighted=0.5544, log=/data/wzw/egolink_race/log/emotion_sort/muti_model/20260504_113241__mods-hubert-large+clip-p14-336__fusion-attention__mode-flat__WAF-0.5544__ACC-0.5729.txt
