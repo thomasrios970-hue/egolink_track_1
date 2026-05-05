@@ -38,17 +38,21 @@ import gc
 import json
 import os
 import random
+import sys
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
 
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+import config
+
 DEFAULT_TASK_MANIFESTS = {
-    "sentiment": Path("/data/wzw/egolink_race/data/manifest/emotion_degree_audio_manifest.csv"),
-    "emotion_sort": Path("/data/wzw/egolink_race/data/manifest/emotion_sort_manifest.csv"),
+    "sentiment": config.PATH_TO_AUDIO_MANIFEST,
+    "emotion_sort": config.PATH_TO_EMOTION_SORT_MANIFEST,
 }
-FEATURE_ROOT = Path("/data/wzw/egolink_race/feature")
+FEATURE_ROOT = config.PATH_TO_FEATURE_DIR
 FEATURE_GROUP_DIRS = [
     FEATURE_ROOT / "audio_features",
     FEATURE_ROOT / "txt_features",
@@ -60,13 +64,13 @@ FEATURE_LEVEL_DIRS = {
     "utterance": ["UTTERANCE", "UTT"],
 }
 FEATURE_ALIASES = {
-    "hubert": Path("/data/wzw/egolink_race/feature/audio_features/chinese-hubert-large"),
-    "macbert": Path("/data/wzw/egolink_race/feature/txt_features/chinese-macbert-large"),
-    "target_text": Path("/data/wzw/egolink_race/feature/target_txt_features/xlm-roberta-xl"),
-    "clip": Path("/data/wzw/egolink_race/feature/visual_features/clip-vit-large-patch14"),
+    "hubert": config.PATH_TO_AUDIO_FEATURE_DIR / "chinese-hubert-large",
+    "macbert": config.PATH_TO_TXT_FEATURE_DIR / "chinese-macbert-large",
+    "target_text": config.PATH_TO_TARGET_TEXT_FEATURE_DIR / "xlm-roberta-xl",
+    "clip": config.PATH_TO_VISUAL_FEATURE_DIR / "clip-vit-large-patch14",
 }
-DEFAULT_CHECKPOINT_ROOT = Path("/data/wzw/egolink_race/checkpoints")
-DEFAULT_LOG_ROOT = Path("/data/wzw/egolink_race/log")
+DEFAULT_CHECKPOINT_ROOT = config.PATH_TO_CHECKPOINT_DIR
+DEFAULT_LOG_ROOT = config.PATH_TO_LOG_DIR
 OUTPUT_TASK_DIRS = {
     "sentiment": "emotion_sentiment",
     "emotion_sort": "emotion_sort",

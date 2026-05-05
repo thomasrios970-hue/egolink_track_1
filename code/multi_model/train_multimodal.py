@@ -39,21 +39,24 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+import config
+
 DEFAULT_TASK_MANIFESTS = {
-    "sentiment": Path("/data/wzw/egolink_race/data/manifest/emotion_degree_audio_manifest.csv"),
-    "emotion_sort": Path("/data/wzw/egolink_race/data/manifest/emotion_sort_manifest.csv"),
+    "sentiment": config.PATH_TO_AUDIO_MANIFEST,
+    "emotion_sort": config.PATH_TO_EMOTION_SORT_MANIFEST,
 }
 DEFAULT_FEATURE_ROOTS = {
-    "hubert": Path("/data/wzw/egolink_race/feature/audio_features/chinese-hubert-large"),
-    "macbert": Path("/data/wzw/egolink_race/feature/txt_features/xlm-roberta-xl"),
-    "target_text": Path("/data/wzw/egolink_race/feature/target_txt_features/xlm-roberta-xl"),
-    "clip": Path("/data/wzw/egolink_race/feature/visual_features/clip-vit-large-patch14"),
+    "hubert": config.PATH_TO_AUDIO_FEATURE_DIR / "chinese-hubert-large",
+    "macbert": config.PATH_TO_TXT_FEATURE_DIR / "xlm-roberta-xl",
+    "target_text": config.PATH_TO_TARGET_TEXT_FEATURE_DIR / "xlm-roberta-xl",
+    "clip": config.PATH_TO_VISUAL_FEATURE_DIR / "clip-vit-large-patch14",
 }
 FEATURE_GROUP_ROOTS = {
-    "hubert": Path("/data/wzw/egolink_race/feature/audio_features"),
-    "macbert": Path("/data/wzw/egolink_race/feature/txt_features"),
-    "target_text": Path("/data/wzw/egolink_race/feature/target_txt_features"),
-    "clip": Path("/data/wzw/egolink_race/feature/visual_features"),
+    "hubert": config.PATH_TO_AUDIO_FEATURE_DIR,
+    "macbert": config.PATH_TO_TXT_FEATURE_DIR,
+    "target_text": config.PATH_TO_TARGET_TEXT_FEATURE_DIR,
+    "clip": config.PATH_TO_VISUAL_FEATURE_DIR,
 }
 DEFAULT_FEATURE_NAMES = {
     "hubert": "chinese-hubert-large",
@@ -67,8 +70,8 @@ FEATURE_ARG_NAMES = {
     "target_text": "target_text_feature",
     "clip": "visual_feature",
 }
-DEFAULT_CHECKPOINT_ROOT = Path("/data/wzw/egolink_race/checkpoints")
-DEFAULT_LOG_ROOT = Path("/data/wzw/egolink_race/log")
+DEFAULT_CHECKPOINT_ROOT = config.PATH_TO_CHECKPOINT_DIR
+DEFAULT_LOG_ROOT = config.PATH_TO_LOG_DIR
 OUTPUT_TASK_DIRS = {
     "sentiment": "emotion_sentiment",
     "emotion_sort": "emotion_sort",
@@ -123,7 +126,7 @@ PRESETS = {
         "ensemble_top_k": 5,
         "ensemble_metric": "val_acc",
         "early_stop_patience": 12,
-        "prediction_dir": Path("/data/wzw/egolink_race/data/processed/model_predictions/emotion_sort"),
+        "prediction_dir": config.PATH_TO_PROCESSED_DIR / "model_predictions" / "emotion_sort",
     },
 }
 

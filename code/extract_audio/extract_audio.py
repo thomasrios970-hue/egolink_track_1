@@ -1,13 +1,17 @@
 import subprocess
+import sys
 from pathlib import Path
 
 import pandas as pd
 
-ANNOTATION = Path("/data/wzw/egolink_race/data/annotation/data1.xlsx")
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+import config
+
+ANNOTATION = config.PATH_TO_DATA1_ANNOTATION
 #视频信息路径
-VIDEO_ROOT = Path("/data/wzw/egolink_race/data/E3/E3")
+VIDEO_ROOT = config.PATH_TO_VIDEO_ROOT
 #视频路径
-AUDIO_ROOT = Path("/data/wzw/egolink_race/data/audio")
+AUDIO_ROOT = config.PATH_TO_AUDIO_ROOT
 #导出音频路径
 df = pd.read_excel(ANNOTATION)
 
