@@ -2,7 +2,9 @@ data/
 checkpoints/
 feature/
 model/
+**/__pycache__/
 
 *.pt
 *.pth
 *.npy
+*.pyc
