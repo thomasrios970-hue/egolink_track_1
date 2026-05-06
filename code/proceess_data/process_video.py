@@ -2,15 +2,15 @@
 从视频中均匀抽取图片帧并保存到 data/processed。
 
 执行逻辑：
-1. 从 config.PATH_TO_VIDEO_MANIFEST 读取 manifest，要求包含 Vid、sub_id 和 video_path 字段。
-2. 对每个视频按照 --num-frames 在整段视频中均匀抽取固定数量的帧；--num-frames all 会依次处理 8、16、32 帧。
+1. 从 Path(config.PATH_TO_DATA_DIR) / "manifest" / "emotion_sort_manifest.csv" 读取 manifest，要求包含 Vid、sub_id 和 video_path 字段。
+2. 对每个视频按照 --num-frames 在整段视频中均匀抽取固定数量的帧；--num-frames all 会依次处理 4、8、16、32 帧。
 3. 默认将图片保存到 Path(config.PATH_TO_PROCESSED_DIR) / f"frames_{num_frames}"。
 4. 每个视频保存到 frames_{num_frames}/{Vid}/{sub_id}/ 目录下，并写入 metadata.json 记录原视频帧号。
 5. 如果目标目录中已有足够数量的帧图片，则自动跳过。
 
 运行示例：
 python code/proceess_data/process_video.py \
-  --num-frames all \
+  --num-frames 4 \
   --image-format jpg \
   --progress-interval 10
 """
@@ -24,7 +24,8 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 import config
 
-FRAME_COUNTS = [8, 16, 32]
+VIDEO_MANIFEST = Path(config.PATH_TO_DATA_DIR) / "manifest" / "emotion_sort_manifest.csv"
+FRAME_COUNTS = [4, 8, 16, 32]
 FRAME_COUNT_CHOICES = [str(num_frames) for num_frames in FRAME_COUNTS] + ["all"]
 IMAGE_FORMAT = "jpg"
 JPEG_QUALITY = 100
@@ -45,7 +46,7 @@ def build_parser():
     parser.add_argument(
         "--manifest",
         type=Path,
-        default=Path(config.PATH_TO_VIDEO_MANIFEST),
+        default=VIDEO_MANIFEST,
         help="manifest CSV 路径，需包含 Vid、sub_id 和 video_path 字段。",
     )
     parser.add_argument(
@@ -58,7 +59,7 @@ def build_parser():
         "--num-frames",
         choices=FRAME_COUNT_CHOICES,
         default="8",
-        help="每个视频均匀抽取的图片帧数量；可选 8、16、32 或 all。",
+        help="每个视频均匀抽取的图片帧数量；可选 4、8、16、32 或 all。",
     )
     parser.add_argument(
         "--image-format",

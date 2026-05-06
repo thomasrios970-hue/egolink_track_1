@@ -1,26 +1,29 @@
 """
-根据 EgoLink / E3 标注和字幕生成本地 MCQ 测试集草稿。
+根据 EgoLink / E3 标注、字幕、音频和视频帧生成本地 MCQ 测试集
 
 执行逻辑：
 1. 从 data/annotation/data2.xlsx 读取 EgoLink / E3 标注。
 2. 过滤有效定位片段，并按 Vid 隔离训练集和本地测试集候选。
-3. 为每个片段读取附近字幕文本。
-4. 调用 Qwen3 生成选择题题干和选项。
+3. emotion 和 reason 只使用标注文件生成，保证测试题干干净。
+4. predict 和 ego_summary 只使用标注中的 start_time/end_time，并结合字幕文本、音频和抽帧图片生成。
 5. 写出题目文件和答案文件两个 JSONL。
 
 运行示例：
-python code/track_1/produce_question_ceshi.py \
-  --num_per_type 10 \
-  --seed 42
+python code/track_1/produce_question_test.py \
+  --num_per_type 5 \
+  --seed 44
 """
 
 import argparse
+import base64
 import json
 import os
 import random
 import re
 import sys
+import time
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib import request
 
 import pandas as pd
@@ -33,20 +36,25 @@ import config
 subtitle_dir = Path(config.PATH_TO_DATA_DIR) / "subtext"
 video_dir = Path(config.PATH_TO_DATA_DIR) / "E3" / "E3"
 audio_dir = Path(config.PATH_TO_DATA_DIR) / "audio"
+frame_root = Path(config.PATH_TO_PROCESSED_DIR) / "frames_16"
 data_path = Path(config.PATH_TO_DATA_DIR) / "annotation" / "data2.xlsx"
-output_dir = Path(config.PATH_TO_QUESTION_DIR) / "ceshi_prompt"
+output_dir = Path(config.PATH_TO_QUESTION_DIR) / "test_question"
 
 QUESTIONS_PATH = output_dir / "local_test_questions.jsonl"
 ANSWER_KEY_PATH = output_dir / "local_test_answer_key.jsonl"
 REVIEW_PATH = output_dir / "local_test_review.jsonl"
+REVIEW_CSV_PATH = output_dir / "local_test_review.csv"
 MCQ_TRAIN_PATH = Path(config.PATH_TO_QUESTION_DIR) / "mcq_train.jsonl"
 
-MODEL_NAME = "qwen3.6-plus"
+MODEL_NAME = "gpt-5.5"
 QWEN_API_URL = os.environ.get(
     "QWEN_API_URL",
     "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
 )
 QWEN_API_KEY = os.environ.get("QWEN_API_KEY", "")
+API_SLEEP_MIN = 1.0
+API_SLEEP_MAX = 3.0
+API_MAX_RETRY = 3
 
 REQUIRED_COLUMNS = {
     "Vid",
@@ -65,7 +73,7 @@ OPTION_LETTERS = ["A", "B", "C", "D"]
 
 """参数解析器统一在这里设置，参数尽量少"""
 parser = argparse.ArgumentParser()
-parser.add_argument("--num_per_type", type=int, default=10, help="每类题目生成数量")
+parser.add_argument("--num_per_type", type=int, default=2, help="每类题目生成数量")
 parser.add_argument("--seed", type=int, default=42, help="随机种子")
 parser.add_argument("--test_vid_ratio", type=float, default=0.2, help="没有 mcq_train.jsonl 时的测试 Vid 比例")
 args = parser.parse_args()
@@ -119,39 +127,71 @@ def build_prompt(sample: dict, question_type: str, subtitle_text: str) -> str:
     输入：sample 字典、question_type 字符串、subtitle_text 字符串。
     输出：prompt 字符串。
     """
-    base = {
-        "Vid": sample["Vid"],
-        "sub_id": sample["sub_id"],
-        "person": sample["person"],
-        "emotion": sample["emotion"],
-        "reason": sample["reason"],
-        "start_time": sample["start_time"],
-        "end_time": sample["end_time"],
-        "subtitle_text": subtitle_text,
-    }
     if question_type == "emotion":
+        base = {
+            "Vid": sample["Vid"],
+            "sub_id": sample["sub_id"],
+            "person": sample["person"],
+            "emotion": sample["emotion"],
+            "start_time": sample["start_time"],
+            "end_time": sample["end_time"],
+        }
         task = (
             "Create an MCQ asking what emotion the person has in this localized segment. "
             "The correct_answer_text must be exactly the annotated emotion. "
-            "Generate three plausible but wrong emotion words."
+            "Generate three plausible but wrong emotion words. "
+            "Use only the annotation fields shown below; do not use subtitles, audio, or video."
         )
     elif question_type == "reason":
+        base = {
+            "Vid": sample["Vid"],
+            "sub_id": sample["sub_id"],
+            "person": sample["person"],
+            "emotion": sample["emotion"],
+            "reason": sample["reason"],
+            "start_time": sample["start_time"],
+            "end_time": sample["end_time"],
+        }
         task = (
             "Create an MCQ asking why the person has this emotion in this localized segment. "
-            "Rewrite the annotated reason briefly without changing its meaning. "
-            "Do not copy the original reason verbatim. Generate three plausible but wrong reasons."
+            "The correct_answer_text must be exactly the annotated reason. "
+            "Use only the annotation fields shown below to write a natural question and three plausible but wrong reasons. "
+            "Do not use subtitles, audio, or video."
         )
     elif question_type == "predict":
+        base = {
+            "Vid": sample["Vid"],
+            "sub_id": sample["sub_id"],
+            "start_time": sample["start_time"],
+            "end_time": sample["end_time"],
+            "video_path": str(video_dir / str(sample["Vid"]) / f"{sample['sub_id']}.mp4"),
+            "audio_path": str(audio_dir / str(sample["Vid"]) / f"{sample['sub_id']}.wav"),
+            "frame_dir": str(frame_root / str(sample["Vid"]) / str(sample["sub_id"])),
+            "subtitle_text": subtitle_text,
+        }
         task = (
-            "Create an MCQ asking what the person will most likely intend to do next. "
-            "The correct option must be grounded in the person, emotion, reason, time range, and subtitles. "
+            "Create an MCQ asking what will most likely happen next or what the main participant will most likely intend to do next. "
+            "Use only the start_time/end_time from the annotation plus the attached video frames, audio, and subtitle text. "
+            "Do not use annotated person, emotion, or reason as generation evidence. "
             "All options must describe next-step behavioral intentions."
         )
     else:
+        base = {
+            "Vid": sample["Vid"],
+            "sub_id": sample["sub_id"],
+            "start_time": sample["start_time"],
+            "end_time": sample["end_time"],
+            "video_path": str(video_dir / str(sample["Vid"]) / f"{sample['sub_id']}.mp4"),
+            "audio_path": str(audio_dir / str(sample["Vid"]) / f"{sample['sub_id']}.wav"),
+            "frame_dir": str(frame_root / str(sample["Vid"]) / str(sample["sub_id"])),
+            "subtitle_text": subtitle_text,
+        }
         task = (
-            "Create an MCQ asking for a first-person high-level summary of the social event. "
+            "Create an MCQ asking for my high-level ego-centric summary of the social event. "
+            "The correct option should describe what I, as the camera wearer, understand, feel, or experience in the segment. "
             "The correct option must not be only an emotion word, only a reason rewrite, or only a next action. "
-            "All options must describe what mainly happens in the segment."
+            "Use only the start_time/end_time from the annotation plus the attached video frames, audio, and subtitle text. "
+            "Do not use annotated person, emotion, or reason as generation evidence."
         )
 
     return f"""
@@ -170,6 +210,9 @@ Task: {task}
 
 Rules:
 - Options should be concise and rely on the real segment content.
+- For emotion and reason, use annotation fields only.
+- For predict and ego_summary, use only start_time/end_time from annotation plus attached video frames, audio, and subtitle text.
+- For ego_summary, the subject is always the camera wearer / I.
 - Incorrect options should be plausible misunderstandings.
 - Incorrect options must not repeat or be semantically equivalent to the correct answer.
 - All four options should have similar topic, length, and grammar.
@@ -180,33 +223,84 @@ Segment information:
 """.strip()
 
 
-def call_qwen3(prompt: str) -> dict:
+def encode_media(path: Path) -> str:
+    """
+    作用：把本地音频或视频文件编码成 base64 字符串，供多模态 API 使用。
+    输入：path 文件路径。
+    输出：base64 字符串；如果文件不存在则输出空字符串。
+    """
+    if not path.exists():
+        return ""
+    return base64.b64encode(path.read_bytes()).decode("utf-8")
+
+
+def call_qwen3(prompt: str, frame_paths: list = None, audio_path: Path = None) -> dict:
     """
     作用：使用 API 模式调用 Qwen3，并解析模型返回的严格 JSON。
-    输入：prompt 字符串。
+    输入：prompt 字符串；可选 frame_paths 抽帧图片路径列表、audio_path 音频路径。
     输出：包含 question、correct_answer_text、incorrect_options 的字典。
     """
+    content = [{"type": "text", "text": prompt}]
+    if audio_path is not None:
+        audio_base64 = encode_media(audio_path)  # 输入：音频路径；输出：音频 base64 字符串。
+        if audio_base64:
+            content.append({"type": "input_audio", "input_audio": {"data": audio_base64, "format": "wav"}})
+    if frame_paths is not None:
+        for frame_path in frame_paths:
+            image_base64 = encode_media(frame_path)  # 输入：抽帧图片路径；输出：图片 base64 字符串。
+            if image_base64:
+                content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}})
+
     payload = {
         "model": MODEL_NAME,
         "messages": [
-            {"role": "system", "content": "You return strict JSON only."},
-            {"role": "user", "content": prompt},
+            {
+                "role": "system",
+                "content": (
+                    "You must return exactly one non-empty JSON object. "
+                    "Do not return an empty message. Do not include markdown."
+                ),
+            },
+            {"role": "user", "content": content if len(content) > 1 else prompt},
         ],
         "temperature": 0.5,
-        "response_format": {"type": "json_object"},
+        "max_completion_tokens": 1024,
     }
+    if len(content) == 1:
+        payload["response_format"] = {"type": "json_object"}
     headers = {"Content-Type": "application/json"}
     if QWEN_API_KEY:
         headers["Authorization"] = f"Bearer {QWEN_API_KEY}"
-    req = request.Request(
-        QWEN_API_URL,
-        data=json.dumps(payload).encode("utf-8"),
-        headers=headers,
-        method="POST",
-    )
-    with request.urlopen(req, timeout=120) as response:
-        result = json.loads(response.read().decode("utf-8"))
-    content = result["choices"][0]["message"]["content"].strip()
+    result = {}
+    content = None
+    for retry_idx in range(API_MAX_RETRY):
+        time.sleep(random.uniform(API_SLEEP_MIN, API_SLEEP_MAX))
+        req = request.Request(
+            QWEN_API_URL,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with request.urlopen(req, timeout=120) as response:
+                result = json.loads(response.read().decode("utf-8"))
+        except HTTPError as e:
+            error_text = e.read().decode("utf-8", errors="ignore")
+            raise RuntimeError(f"API request failed: HTTP {e.code}, {error_text}") from e
+        message = result.get("choices", [{}])[0].get("message", {})
+        content = message.get("content")
+        if isinstance(content, list):
+            content = "\n".join(str(item.get("text", item)) for item in content)
+        if content is not None and str(content).strip():
+            content = str(content).strip()
+            break
+        print(f"warning: empty API content, retry {retry_idx + 1}/{API_MAX_RETRY}", flush=True)
+        content = None
+    if content is None:
+        raise RuntimeError(
+            "API response has no message.content after retries. Full response: "
+            + json.dumps(result, ensure_ascii=False)
+        )
     if content.startswith("```"):
         content = re.sub(r"^```(?:json)?\s*", "", content)
         content = re.sub(r"\s*```$", "", content)
@@ -277,7 +371,9 @@ for _, row in df.iterrows():
     )
 
 all_vids = sorted({str(sample["Vid"]) for sample in samples})
-train_vids = set()
+train_vids = {str(sample["Vid"]) for sample in samples if sample["set"] in ["train", "val"]}
+test_vids = {str(sample["Vid"]) for sample in samples if sample["set"] == "test"} - train_vids
+
 if MCQ_TRAIN_PATH.exists():
     with MCQ_TRAIN_PATH.open("r", encoding="utf-8") as f:
         for line in f:
@@ -285,8 +381,9 @@ if MCQ_TRAIN_PATH.exists():
                 item = json.loads(line)
                 if "Vid" in item:
                     train_vids.add(str(item["Vid"]))
-    test_vids = set(all_vids) - train_vids
-else:
+    test_vids = test_vids - train_vids
+
+if not test_vids:
     rng.shuffle(all_vids)
     test_count = max(1, int(len(all_vids) * args.test_vid_ratio))
     test_vids = set(all_vids[:test_count])
@@ -307,15 +404,29 @@ for question_type in QUESTION_TYPES:
         if counts[question_type] >= args.num_per_type:
             break
 
-        subtitle_text = read_subtitle_text(  # 输入：Vid、sub_id、start/end 时间；输出：字幕文本 str。
-            sample["Vid"],
-            sample["sub_id"],
-            sample["start_time"],
-            sample["end_time"],
-        )
+        subtitle_text = ""
+        if question_type in ["predict", "ego_summary"]:
+            subtitle_text = read_subtitle_text(  # 输入：Vid、sub_id、start/end 时间；输出：字幕文本 str。
+                sample["Vid"],
+                sample["sub_id"],
+                sample["start_time"],
+                sample["end_time"],
+            )
         prompt = build_prompt(sample, question_type, subtitle_text)  # 输入：样本、题型、字幕；输出：Qwen3 prompt 字符串。
-        result = call_qwen3(prompt)  # 输入：prompt 字符串；输出：Qwen3 返回的题目 JSON 字典。
-        correct_answer_text = sample["emotion"] if question_type == "emotion" else result["correct_answer_text"]
+        video_path = video_dir / str(sample["Vid"]) / f"{sample['sub_id']}.mp4"
+        audio_path = audio_dir / str(sample["Vid"]) / f"{sample['sub_id']}.wav"
+        frame_paths = sorted((frame_root / str(sample["Vid"]) / str(sample["sub_id"])).glob("*.jpg"))
+        if question_type in ["predict", "ego_summary"]:
+            # 输入：prompt、抽帧图片路径列表、音频路径；输出：多模态生成的题目 JSON 字典。
+            result = call_qwen3(prompt, frame_paths, audio_path)
+        else:
+            result = call_qwen3(prompt)  # 输入：prompt 字符串；输出：文本生成的题目 JSON 字典。
+        if question_type == "emotion":
+            correct_answer_text = sample["emotion"]
+        elif question_type == "reason":
+            correct_answer_text = sample["reason"]
+        else:
+            correct_answer_text = result["correct_answer_text"]
         # 输入：正确答案、错误选项、随机对象；输出：A/B/C/D 选项和答案字母。
         options, answer = make_options(correct_answer_text, result["incorrect_options"], rng)
 
@@ -342,6 +453,26 @@ for question_type in QUESTION_TYPES:
             }
         )
         answer_keys.append({"qid": qid, "answer": answer})
+        generation_basis = {
+            "note": "正式题目文件不包含这些依据。emotion/reason 只用标注文件；predict/ego_summary 只用标注 start_time/end_time 加文本、音频和视频帧。",
+            "multimodal_used": question_type in ["predict", "ego_summary"],
+            "start_time": sample["start_time"],
+            "end_time": sample["end_time"],
+        }
+        if question_type in ["emotion", "reason"]:
+            generation_basis["person"] = sample["person"]
+            generation_basis["emotion"] = sample["emotion"]
+            if question_type == "reason":
+                generation_basis["reason"] = sample["reason"]
+            generation_basis["annotation_only"] = True
+        else:
+            generation_basis["annotation_fields_used"] = ["start_time", "end_time"]
+            generation_basis["annotation_person_emotion_reason_used"] = False
+            generation_basis["video_path"] = str(video_path)
+            generation_basis["audio_path"] = str(audio_path)
+            generation_basis["frame_paths"] = [str(path) for path in frame_paths]
+            generation_basis["subtitle_text"] = subtitle_text
+
         review_rows.append(
             {
                 "qid": qid,
@@ -358,9 +489,11 @@ for question_type in QUESTION_TYPES:
                 "reason": sample["reason"],
                 "start_time": sample["start_time"],
                 "end_time": sample["end_time"],
+                "generation_basis": generation_basis,
                 "video_path": str(video_dir / str(sample["Vid"]) / f"{sample['sub_id']}.mp4"),
                 "audio_path": str(audio_dir / str(sample["Vid"]) / f"{sample['sub_id']}.wav"),
                 "subtitle_path": str(subtitle_dir / str(sample["Vid"]) / f"{sample['sub_id']}.vtt"),
+                "frame_dir": str(frame_root / str(sample["Vid"]) / str(sample["sub_id"])),
                 "subtitle_text": subtitle_text,
             }
         )
@@ -380,11 +513,13 @@ with ANSWER_KEY_PATH.open("w", encoding="utf-8") as f:
 with REVIEW_PATH.open("w", encoding="utf-8") as f:
     for row in review_rows:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
+pd.DataFrame(review_rows).to_csv(REVIEW_CSV_PATH, index=False, encoding="utf-8-sig")
 
 print(f"total_questions: {len(questions)}", flush=True)
 print(f"counts_by_type: {counts}", flush=True)
 print(f"questions_path: {QUESTIONS_PATH}", flush=True)
 print(f"answer_key_path: {ANSWER_KEY_PATH}", flush=True)
 print(f"review_path: {REVIEW_PATH}", flush=True)
+print(f"review_csv_path: {REVIEW_CSV_PATH}", flush=True)
 print(f"skipped_samples: {skipped}", flush=True)
 print(f"train_test_vid_overlap: {bool(train_vids & test_vids)}", flush=True)
