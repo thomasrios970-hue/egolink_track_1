@@ -48,6 +48,9 @@ modelscope_model={
     "llm_model":{
         "Qwen/Qwen2.5-Omni-7B": "Qwen2.5-Omni-7B",
     },
+    "audio_models":{
+        "Qwen/Qwen3-ForcedAligner-0.6B": "Qwen3-ForcedAligner-0.6B",
+    },
 }
 
 from typing import Dict
@@ -71,14 +74,14 @@ def download_modelscope_model(modelscope_model:Dict):
     for _,models in modelscope_model.items():
         for repo_id,local_name in models.items():
             print(f"Downloading {repo_id}")
-        download_path=SAVE_ROOT/"modelscope_model"/local_name
-        if (download_path/"config.json").exists():
+            download_path=SAVE_ROOT/"modelscope_model"/local_name
+            if (download_path/"config.json").exists():
                 print(f"{local_name}已存在")
-        else:
-            snapshot_download_modelscope(
-		    repo_id=repo_id,
-            local_dir=download_path,
-            )
+            else:
+                snapshot_download_modelscope(
+                repo_id=repo_id,
+                local_dir=download_path,
+                )
 
 if __name__=="__main__":
     download_huggingface_models(huggingface_model)
