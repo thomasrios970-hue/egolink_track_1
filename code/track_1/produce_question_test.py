@@ -170,10 +170,12 @@ def build_prompt(sample: dict, question_type: str, subtitle_text: str) -> str:
             "subtitle_text": subtitle_text,
         }
         task = (
-            "Create an MCQ asking what will most likely happen next or what the main participant will most likely intend to do next. "
+            "Create an MCQ asking what the relevant person in the current segment will most likely do, intend, or experience next. "
             "Use only the start_time/end_time from the annotation plus the attached video frames, audio, and subtitle text. "
             "Do not use annotated person, emotion, or reason as generation evidence. "
-            "All options must describe next-step behavioral intentions."
+            "All options must describe next-step behavioral intentions. "
+            "Use a natural subject from the visible scene, such as I, the man in black, the woman in white, or another clearly identified person. "
+            "Do not use vague phrases like 'the camera wearer' or 'the person' when a clearer subject is available."
         )
     else:
         base = {
@@ -188,7 +190,7 @@ def build_prompt(sample: dict, question_type: str, subtitle_text: str) -> str:
         }
         task = (
             "Create an MCQ asking for my high-level ego-centric summary of the social event. "
-            "The correct option should describe what I, as the camera wearer, understand, feel, or experience in the segment. "
+            "The correct option should describe what I understand, feel, or experience in the segment. "
             "The correct option must not be only an emotion word, only a reason rewrite, or only a next action. "
             "Use only the start_time/end_time from the annotation plus the attached video frames, audio, and subtitle text. "
             "Do not use annotated person, emotion, or reason as generation evidence."
@@ -212,7 +214,8 @@ Rules:
 - Options should be concise and rely on the real segment content.
 - For emotion and reason, use annotation fields only.
 - For predict and ego_summary, use only start_time/end_time from annotation plus attached video frames, audio, and subtitle text.
-- For ego_summary, the subject is always the camera wearer / I.
+- For predict, use a clear natural subject from the current segment; it can be I or a visible person such as the man in black. Do not force first person if another visible person is the target.
+- For ego_summary, the subject is always I; use I/me/my and never use 'the camera wearer' in the question or options.
 - Incorrect options should be plausible misunderstandings.
 - Incorrect options must not repeat or be semantically equivalent to the correct answer.
 - All four options should have similar topic, length, and grammar.

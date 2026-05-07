@@ -11,8 +11,8 @@
 
 运行示例：
 python code/track_1/improve_produce_question_test.py \
-  --num_per_type 50 \
-  --seed 42
+  --num_per_type 1 \
+  --seed 202657
 """
 
 import argparse
@@ -21,10 +21,11 @@ import json
 import os
 import random
 import re
+import socket
 import sys
 import time
 from pathlib import Path
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib import request
 
 import pandas as pd
@@ -42,8 +43,6 @@ frame_root = Path(config.PATH_TO_PROCESSED_DIR) / "frames_16"
 audio_text_root = Path(config.PATH_TO_PROCESSED_DIR) / "audio_to_text"
 data_path = Path(config.PATH_TO_DATA_DIR) / "annotation" / "data2.xlsx"
 output_dir = Path(config.PATH_TO_QUESTION_DIR) / "test_question"
-TARGET_VID = 8745
-TARGET_SUB_ID = 3
 
 QUESTIONS_PATH = output_dir / "local_test_questions.jsonl"
 ANSWER_KEY_PATH = output_dir / "local_test_answer_key.jsonl"
@@ -51,15 +50,16 @@ REVIEW_PATH = output_dir / "local_test_review.jsonl"
 REVIEW_CSV_PATH = output_dir / "local_test_review.csv"
 MCQ_TRAIN_PATH = Path(config.PATH_TO_QUESTION_DIR) / "mcq_train.jsonl"
 
-MODEL_NAME = "gpt-5.5"
+MODEL_NAME = "qwen3.6-plus"
 QWEN_API_URL = os.environ.get(
-    "QWEN_API_URL",
-    "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+    "QWEN_API_URL"
 )
 QWEN_API_KEY = os.environ.get("QWEN_API_KEY", "")
 API_SLEEP_MIN = 1.0
 API_SLEEP_MAX = 3.0
 API_MAX_RETRY = 3
+API_TIMEOUT = 120
+MAX_COMPLETION_TOKENS = 4096
 MAX_CONTEXT_SUBVIDEOS = 3
 whisper_model = None
 
@@ -210,7 +210,7 @@ def read_full_subtitle_text(Vid, sub_id) -> str:
 
 def get_context_frame_paths(Vid, sub_id, direction: str) -> dict:
     """
-    作用：读取当前子视频的 16 帧，以及同一 Vid 中当前 sub_id 之前或之后所有子视频的 8 帧、字幕和音频转写文本。
+    作用：读取当前子视频的 16 帧，以及同一 Vid 中当前 sub_id 之前或之后最多 3 个子视频的 8 帧、字幕和音频转写文本。
     输入：Vid、sub_id、direction；direction 为 before 或 after。
     输出：包含 current_frame_paths、context_frame_paths、context_audio_text、context_subtitle_text 的 dict。
     """
@@ -300,13 +300,15 @@ def build_prompt(sample: dict, question_type: str, context_frame_paths: list = N
             "audio_transcript": audio_text,
         }
         task = (
-            "Create an MCQ asking what will most likely happen right after the current sub_id segment, "
-            "or what the main participant will most likely intend to do next. "
-            "The current sub_id segment is the question anchor. Use the future sub_id frames, subtitles, and audio transcripts as auxiliary evidence "
-            "for what actually happens afterward, so the correct answer is as accurate as possible. "
+            "Create an MCQ asking what the relevant person in the current segment most likely intends to do next. "
+            "This is an intention prediction question, not an outcome prediction question. "
+            "The current sub_id segment is the question anchor. Use the future sub_id frames, subtitles, and audio transcripts only as auxiliary evidence "
+            "for inferring the person's intention in the current segment. "
             "If subtitles and Whisper transcripts conflict, prefer the evidence that is clearer, more segment-relevant, and more consistent with the frames. "
             "Do not make the future clips themselves the question target. "
-            "All options must describe next-step behavioral intentions or immediate next events."
+            "All options must describe possible intentions, plans, or purposes, not later outcomes or completed events. "
+            "Use a natural subject from the visible scene or annotation, such as I, the man in black, the woman in white, or another clearly identified person. "
+            "Do not use vague phrases like 'the camera wearer' or 'the person' when a clearer subject is available."
         )
     else:
         base = {
@@ -328,11 +330,10 @@ def build_prompt(sample: dict, question_type: str, context_frame_paths: list = N
         }
         task = (
             "Create an MCQ asking for my high-level ego-centric summary of the current sub_id segment. "
-            "The correct option should describe what I, as the camera wearer, understand, feel, or experience in the current segment. "
+            "The correct option should describe what I understand, feel, or experience in the current segment. "
             "The correct option must not be only an emotion word, only a reason rewrite, or only a next action. "
             "Use the previous sub_id frames, subtitles, and audio transcripts only as background clues for understanding the current segment. "
             "If subtitles and Whisper transcripts conflict, prefer the evidence that is clearer, more segment-relevant, and more consistent with the frames. "
-            "Do not summarize the previous clips themselves; the answer must summarize the current sub_id segment."
         )
 
     return f"""
@@ -352,10 +353,11 @@ Task: {task}
 Rules:
 - Options should be concise and rely on the real segment content.
 - For emotion and reason, use annotation fields only.
-- For predict, future sub_id frames/subtitles/audio transcripts are auxiliary evidence for the next event after the current segment; the question still anchors on the current sub_id.
+- For predict, future sub_id frames/subtitles/audio transcripts are only auxiliary evidence for inferring intention; do not ask for or answer with later outcomes.
+- For predict, use a clear natural subject from the current segment; it can be I or a visible person such as the man in black. Do not force first person if another visible person is the target.
 - For ego_summary, previous sub_id frames/subtitles/audio transcripts are background clues; the answer must summarize the current sub_id from my first-person perspective.
 - If subtitle text and Whisper transcript conflict, prefer the evidence that best matches the frames and current localized segment.
-- For ego_summary, the subject is always the camera wearer / I.
+- For ego_summary, the subject is always I; use I/me/my and never use 'the camera wearer' in the question or options.
 - Incorrect options should be plausible misunderstandings.
 - Incorrect options must not repeat or be semantically equivalent to the correct answer.
 - All four options should have similar topic, length, and grammar.
@@ -410,7 +412,7 @@ def call_qwen3(prompt: str, frame_paths: list = None, context_frame_paths: list 
             {"role": "user", "content": content if len(content) > 1 else prompt},
         ],
         "temperature": 0.2,
-        "max_completion_tokens": 1024,
+        "max_completion_tokens": MAX_COMPLETION_TOKENS,
     }
     if len(content) == 1:
         payload["response_format"] = {"type": "json_object"}
@@ -429,11 +431,17 @@ def call_qwen3(prompt: str, frame_paths: list = None, context_frame_paths: list 
             method="POST",
         )
         try:
-            with request.urlopen(req, timeout=120) as response:
+            with request.urlopen(req, timeout=API_TIMEOUT) as response:
                 result = json.loads(response.read().decode("utf-8"))
         except HTTPError as e:
             error_text = e.read().decode("utf-8", errors="ignore")
             raise RuntimeError(f"API request failed: HTTP {e.code}, {error_text}") from e
+        except (TimeoutError, socket.timeout) as e:
+            raise RuntimeError("API timeout, skip this attempt without inner retry") from e
+        except URLError as e:
+            if isinstance(e.reason, TimeoutError) or isinstance(e.reason, socket.timeout):
+                raise RuntimeError("API timeout, skip this attempt without inner retry") from e
+            raise
         message = result.get("choices", [{}])[0].get("message", {})
         content = message.get("content")
         if isinstance(content, list):
@@ -481,6 +489,68 @@ def make_options(correct_answer_text: str, incorrect_options: list[str], rng: ra
     options = {letter: items[idx][0] for idx, letter in enumerate(OPTION_LETTERS)}
     answer = next(letter for idx, letter in enumerate(OPTION_LETTERS) if items[idx][1])
     return options, answer
+
+
+def read_jsonl(path: Path) -> list:
+    """
+    作用：读取 jsonl 文件。
+    输入：path 文件路径。
+    输出：字典列表 list。
+    """
+    if not path.exists():
+        return []
+    rows = []
+    with path.open("r", encoding="utf-8") as f:
+        for line in f:
+            if line.strip():
+                rows.append(json.loads(line))
+    return rows
+
+
+def write_jsonl(path: Path, rows: list):
+    """
+    作用：覆盖写出 jsonl 文件。
+    输入：path 文件路径、rows 字典列表。
+    输出：无输出。
+    """
+    with path.open("w", encoding="utf-8") as f:
+        for row in rows:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def append_jsonl(path: Path, row: dict):
+    """
+    作用：追加写出一行 jsonl。
+    输入：path 文件路径、row 字典。
+    输出：无输出。
+    """
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def append_csv(path: Path, row: dict):
+    """
+    作用：追加写出一行 csv。
+    输入：path 文件路径、row 字典。
+    输出：无输出。
+    """
+    pd.DataFrame([row]).to_csv(path, mode="a", header=not path.exists(), index=False, encoding="utf-8-sig")
+
+
+def load_resume_rows() -> tuple[list, list, list, set]:
+    """
+    作用：读取已有输出，只保留 questions、answer_key、review 都完整存在的 qid。
+    输入：无输入。
+    输出：questions、answer_keys、review_rows、ready_qids。
+    """
+    q_rows = read_jsonl(QUESTIONS_PATH)  # 输入：questions 路径；输出：已有题目列表。
+    a_rows = read_jsonl(ANSWER_KEY_PATH)  # 输入：answer_key 路径；输出：已有答案列表。
+    r_rows = read_jsonl(REVIEW_PATH)  # 输入：review 路径；输出：已有复查列表。
+    qids = {row["qid"] for row in q_rows} & {row["qid"] for row in a_rows} & {row["qid"] for row in r_rows}
+    q_rows = [row for row in q_rows if row["qid"] in qids]
+    a_rows = [row for row in a_rows if row["qid"] in qids]
+    r_rows = [row for row in r_rows if row["qid"] in qids]
+    return q_rows, a_rows, r_rows, qids
 
 
 """代码块部分：读取数据、划分 Vid、生成题目、写出文件"""
@@ -546,143 +616,139 @@ if not test_vids:
 candidates = [
     sample
     for sample in samples
-    if int(sample["Vid"]) == TARGET_VID and int(sample["sub_id"]) == TARGET_SUB_ID
+    if str(sample["Vid"]) in test_vids
 ]
 rng.shuffle(candidates)
 
-questions = []
-answer_keys = []
-review_rows = []
-used_qids = set()
-counts = {question_type: 0 for question_type in QUESTION_TYPES}
+output_dir.mkdir(parents=True, exist_ok=True)
+questions, answer_keys, review_rows, used_qids = load_resume_rows()  # 输入：无输入；输出：已有完整输出和可续跑 qid。
+write_jsonl(QUESTIONS_PATH, questions)  # 输入：questions 路径和已有完整题目；输出：清理后的 questions jsonl。
+write_jsonl(ANSWER_KEY_PATH, answer_keys)  # 输入：answer_key 路径和已有完整答案；输出：清理后的 answer_key jsonl。
+write_jsonl(REVIEW_PATH, review_rows)  # 输入：review 路径和已有完整复查数据；输出：清理后的 review jsonl。
+if review_rows:
+    pd.DataFrame(review_rows).to_csv(REVIEW_CSV_PATH, index=False, encoding="utf-8-sig")
+elif REVIEW_CSV_PATH.exists():
+    REVIEW_CSV_PATH.unlink()
+counts = {question_type: sum(row["question_type"] == question_type for row in questions) for question_type in QUESTION_TYPES}
+print(f"resume_existing: {counts}", flush=True)
+
+def generate_one_question(sample: dict, question_type: str) -> bool:
+    """
+    作用：为一个样本生成一道题，并立刻追加写入四个输出文件。
+    输入：sample 样本字典、question_type 题型字符串。
+    输出：生成成功返回 True，已有 qid 也返回 True；API 或选项失败返回 False。
+    """
+    safe_person = re.sub(r"\W+", "_", sample["person"]).strip("_") or "person"
+    qid_base = f"{sample['Vid']}_{sample['sub_id']}_{safe_person}_{question_type}"
+    if qid_base in used_qids:
+        return True
+    qid = qid_base
+    idx = 2
+    while qid in used_qids:
+        qid = f"{qid_base}_{idx}"
+        idx += 1
+
+    audio_path = audio_dir / str(sample["Vid"]) / f"{sample['sub_id']}.wav"
+    frame_paths = []
+    context_frame_paths = []
+    audio_text = ""
+    context_audio_text = ""
+    subtitle_text = ""
+    context_subtitle_text = ""
+    context_label = ""
+    if question_type == "predict":
+        frame_data = get_context_frame_paths(sample["Vid"], sample["sub_id"], "after")  # 输入：Vid、sub_id、after；输出：之后上下文帧/音频文本/字幕。
+        frame_paths = frame_data["current_frame_paths"]
+        context_frame_paths = frame_data["context_frame_paths"]
+        audio_text = transcribe_audio(audio_path, sample["Vid"], sample["sub_id"])  # 输入：当前音频路径、Vid、sub_id；输出：Whisper 转写文本。
+        context_audio_text = frame_data["context_audio_text"]
+        subtitle_text = read_subtitle_text(sample["Vid"], sample["sub_id"], sample["start_time"], sample["end_time"])  # 输入：Vid、sub_id、start/end时间；输出：当前字幕文本。
+        context_subtitle_text = frame_data["context_subtitle_text"]
+        context_label = "Future sub_id 8-frame context from the same Vid, ordered by time:"
+    elif question_type == "ego_summary":
+        frame_data = get_context_frame_paths(sample["Vid"], sample["sub_id"], "before")  # 输入：Vid、sub_id、before；输出：之前上下文帧/音频文本/字幕。
+        frame_paths = frame_data["current_frame_paths"]
+        context_frame_paths = frame_data["context_frame_paths"]
+        audio_text = transcribe_audio(audio_path, sample["Vid"], sample["sub_id"])  # 输入：当前音频路径、Vid、sub_id；输出：Whisper 转写文本。
+        context_audio_text = frame_data["context_audio_text"]
+        subtitle_text = read_subtitle_text(sample["Vid"], sample["sub_id"], sample["start_time"], sample["end_time"])  # 输入：Vid、sub_id、start/end时间；输出：当前字幕文本。
+        context_subtitle_text = frame_data["context_subtitle_text"]
+        context_label = "Previous sub_id 8-frame context from the same Vid, ordered by time:"
+
+    prompt = build_prompt(sample, question_type, context_frame_paths, audio_text, context_audio_text, subtitle_text, context_subtitle_text)  # 输入：样本、题型、多模态文本线索；输出：prompt 字符串。
+    try:
+        result = call_qwen3(prompt, frame_paths, context_frame_paths, context_label) if question_type in ["predict", "ego_summary"] else call_qwen3(prompt)  # 输入：prompt 和可选图片；输出：题目 JSON。
+        correct_answer_text = sample["emotion"] if question_type == "emotion" else sample["reason"] if question_type == "reason" else result["correct_answer_text"]
+        options, answer = make_options(correct_answer_text, result["incorrect_options"], rng)  # 输入：正确答案、错误选项、随机对象；输出：选项和答案字母。
+    except Exception as e:
+        print(f"warning: failed {qid_base} because {e}", flush=True)
+        return False
+
+    question_row = {
+        "qid": qid,
+        "Vid": sample["Vid"],
+        "sub_id": sample["sub_id"],
+        "person": sample["person"],
+        "question_type": question_type,
+        "question": " ".join(str(result["question"]).split()),
+        "options": options,
+        "start_time": sample["start_time"],
+        "end_time": sample["end_time"],
+    }
+    answer_row = {"qid": qid, "answer": answer}
+    review_row = {
+        "qid": qid,
+        "Vid": sample["Vid"],
+        "sub_id": sample["sub_id"],
+        "person": sample["person"],
+        "question_type": question_type,
+        "question": " ".join(str(result["question"]).split()),
+        "A": options.get("A", ""),
+        "B": options.get("B", ""),
+        "C": options.get("C", ""),
+        "D": options.get("D", ""),
+        "answer": answer,
+        "answer_text": options[answer],
+        "emotion": sample["emotion"],
+        "degree": sample["degree"],
+        "reason": sample["reason"],
+        "start_time": sample["start_time"],
+        "end_time": sample["end_time"],
+        "subtitle_text": subtitle_text,
+        "audio_transcript": audio_text,
+    }
+    append_jsonl(QUESTIONS_PATH, question_row)  # 输入：questions 路径和题目行；输出：追加写入 questions。
+    append_jsonl(ANSWER_KEY_PATH, answer_row)  # 输入：answer_key 路径和答案行；输出：追加写入 answer_key。
+    append_jsonl(REVIEW_PATH, review_row)  # 输入：review 路径和复查行；输出：追加写入 review jsonl。
+    append_csv(REVIEW_CSV_PATH, review_row)  # 输入：review_csv 路径和复查行；输出：追加写入 review csv。
+    questions.append(question_row)
+    answer_keys.append(answer_row)
+    review_rows.append(review_row)
+    used_qids.add(qid)
+    counts[question_type] += 1
+    print(f"{question_type}: {counts[question_type]}/{args.num_per_type}", flush=True)
+    return True
+
 
 for question_type in QUESTION_TYPES:
     print(f"generating {question_type}...", flush=True)
+    failed_samples = []
     for sample in candidates:
         if counts[question_type] >= args.num_per_type:
             break
+        ok = generate_one_question(sample, question_type)  # 输入：样本、题型；输出：是否生成成功。
+        if not ok:
+            failed_samples.append(sample)
 
-        video_path = video_dir / str(sample["Vid"]) / f"{sample['sub_id']}.mp4"
-        audio_path = audio_dir / str(sample["Vid"]) / f"{sample['sub_id']}.wav"
-        frame_paths = []
-        context_frame_paths = []
-        audio_text = ""
-        context_audio_text = ""
-        subtitle_text = ""
-        context_subtitle_text = ""
-        context_label = ""
-        if question_type == "predict":
-            frame_data = get_context_frame_paths(  # 输入：Vid、sub_id、after；输出：当前子视频 frames_16 和之后子视频 frames_8/audio_text/subtitle_text。
-                sample["Vid"],
-                sample["sub_id"],
-                "after",
-            )
-            frame_paths = frame_data["current_frame_paths"]
-            context_frame_paths = frame_data["context_frame_paths"]
-            audio_text = transcribe_audio(audio_path, sample["Vid"], sample["sub_id"])  # 输入：当前音频路径、Vid、sub_id；输出：Whisper 转写文本。
-            context_audio_text = frame_data["context_audio_text"]
-            subtitle_text = read_subtitle_text(sample["Vid"], sample["sub_id"], sample["start_time"], sample["end_time"])  # 输入：Vid、sub_id、start/end时间；输出：当前字幕文本。
-            context_subtitle_text = frame_data["context_subtitle_text"]
-            context_label = "Future sub_id 8-frame context from the same Vid, ordered by time:"
-        elif question_type == "ego_summary":
-            frame_data = get_context_frame_paths(  # 输入：Vid、sub_id、before；输出：当前子视频 frames_16 和之前子视频 frames_8/audio_text/subtitle_text。
-                sample["Vid"],
-                sample["sub_id"],
-                "before",
-            )
-            frame_paths = frame_data["current_frame_paths"]
-            context_frame_paths = frame_data["context_frame_paths"]
-            audio_text = transcribe_audio(audio_path, sample["Vid"], sample["sub_id"])  # 输入：当前音频路径、Vid、sub_id；输出：Whisper 转写文本。
-            context_audio_text = frame_data["context_audio_text"]
-            subtitle_text = read_subtitle_text(sample["Vid"], sample["sub_id"], sample["start_time"], sample["end_time"])  # 输入：Vid、sub_id、start/end时间；输出：当前字幕文本。
-            context_subtitle_text = frame_data["context_subtitle_text"]
-            context_label = "Previous sub_id 8-frame context from the same Vid, ordered by time:"
-        prompt = build_prompt(  # 输入：样本、题型、上下文8帧路径、当前/上下文音频转写文本、当前/上下文字幕；输出：Qwen3 prompt 字符串。
-            sample,
-            question_type,
-            context_frame_paths,
-            audio_text,
-            context_audio_text,
-            subtitle_text,
-            context_subtitle_text,
-        )
-        if question_type in ["predict", "ego_summary"]:
-            # 输入：prompt、当前抽帧图片路径列表、上下文抽帧图片路径列表、上下文说明；输出：多模态生成的题目 JSON 字典。
-            result = call_qwen3(prompt, frame_paths, context_frame_paths, context_label)
-        else:
-            result = call_qwen3(prompt)  # 输入：prompt 字符串；输出：文本生成的题目 JSON 字典。
-        if question_type == "emotion":
-            correct_answer_text = sample["emotion"]
-        elif question_type == "reason":
-            correct_answer_text = sample["reason"]
-        else:
-            correct_answer_text = result["correct_answer_text"]
-        # 输入：正确答案、错误选项、随机对象；输出：A/B/C/D 选项和答案字母。
-        options, answer = make_options(correct_answer_text, result["incorrect_options"], rng)
-
-        safe_person = re.sub(r"\W+", "_", sample["person"]).strip("_") or "person"
-        qid_base = f"{sample['Vid']}_{sample['sub_id']}_{safe_person}_{question_type}"
-        qid = qid_base
-        idx = 2
-        while qid in used_qids:
-            qid = f"{qid_base}_{idx}"
-            idx += 1
-        used_qids.add(qid)
-
-        questions.append(
-            {
-                "qid": qid,
-                "Vid": sample["Vid"],
-                "sub_id": sample["sub_id"],
-                "person": sample["person"],
-                "question_type": question_type,
-                "question": " ".join(str(result["question"]).split()),
-                "options": options,
-                "start_time": sample["start_time"],
-                "end_time": sample["end_time"],
-            }
-        )
-        answer_keys.append({"qid": qid, "answer": answer})
-        review_rows.append(
-            {
-                "qid": qid,
-                "Vid": sample["Vid"],
-                "sub_id": sample["sub_id"],
-                "person": sample["person"],
-                "question_type": question_type,
-                "question": " ".join(str(result["question"]).split()),
-                "A": options.get("A", ""),
-                "B": options.get("B", ""),
-                "C": options.get("C", ""),
-                "D": options.get("D", ""),
-                "answer": answer,
-                "answer_text": options[answer],
-                "emotion": sample["emotion"],
-                "degree": sample["degree"],
-                "reason": sample["reason"],
-                "start_time": sample["start_time"],
-                "end_time": sample["end_time"],
-                "subtitle_text": subtitle_text,
-                "audio_transcript": audio_text,
-            }
-        )
-        counts[question_type] += 1
-        print(f"{question_type}: {counts[question_type]}/{args.num_per_type}", flush=True)
+    if counts[question_type] < args.num_per_type and failed_samples:
+        print(f"retry_failed_{question_type}: {len(failed_samples)}", flush=True)
+        for sample in failed_samples:
+            if counts[question_type] >= args.num_per_type:
+                break
+            generate_one_question(sample, question_type)  # 输入：失败样本、题型；输出：补试是否成功。
 
     if counts[question_type] < args.num_per_type:
         print(f"warning: {question_type} only generated {counts[question_type]} questions", flush=True)
-
-output_dir.mkdir(parents=True, exist_ok=True)
-with QUESTIONS_PATH.open("w", encoding="utf-8") as f:
-    for row in questions:
-        f.write(json.dumps(row, ensure_ascii=False) + "\n")
-with ANSWER_KEY_PATH.open("w", encoding="utf-8") as f:
-    for row in answer_keys:
-        f.write(json.dumps(row, ensure_ascii=False) + "\n")
-with REVIEW_PATH.open("w", encoding="utf-8") as f:
-    for row in review_rows:
-        f.write(json.dumps(row, ensure_ascii=False) + "\n")
-pd.DataFrame(review_rows).to_csv(REVIEW_CSV_PATH, index=False, encoding="utf-8-sig")
 
 print(f"total_questions: {len(questions)}", flush=True)
 print(f"counts_by_type: {counts}", flush=True)
