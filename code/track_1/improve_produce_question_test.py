@@ -1,16 +1,17 @@
 """
-只针对 8745_3 子视频生成改进版本地 MCQ 测试集
+批量生成改进版本地 MCQ 测试集
 
 执行逻辑：
 1. 从 data/annotation/data2.xlsx 读取 EgoLink / E3 标注。
-2. 只保留 Vid=8745 且 sub_id=3 的定位片段。
+2. 按 Vid 划分训练集和测试集，保证训练 Vid 与测试 Vid 不重叠。
 3. emotion 和 reason 只使用标注文件生成。
-4. predict 使用当前片段之后子视频的 frames_8，ego_summary 使用当前片段之前子视频的 frames_8。
-5. 写出 questions、answer_key、review jsonl 和 review csv。
+4. predict 使用当前片段 frames_16、当前字幕、当前音频转写文本，以及之后子视频的 frames_8、字幕、音频转写文本。
+5. ego_summary 使用当前片段 frames_16、当前字幕、当前音频转写文本，以及之前子视频的 frames_8、字幕、音频转写文本。
+6. 写出 questions、answer_key、review jsonl 和 review csv。
 
 运行示例：
 python code/track_1/improve_produce_question_test.py \
-  --num_per_type 1 \
+  --num_per_type 50 \
   --seed 42
 """
 
@@ -27,6 +28,7 @@ from urllib.error import HTTPError
 from urllib import request
 
 import pandas as pd
+import whisper
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
@@ -37,7 +39,7 @@ subtitle_dir = Path(config.PATH_TO_DATA_DIR) / "subtext"
 video_dir = Path(config.PATH_TO_DATA_DIR) / "E3" / "E3"
 audio_dir = Path(config.PATH_TO_DATA_DIR) / "audio"
 frame_root = Path(config.PATH_TO_PROCESSED_DIR) / "frames_16"
-context_frame_root = Path(config.PATH_TO_PROCESSED_DIR) / "frames_8"
+audio_text_root = Path(config.PATH_TO_PROCESSED_DIR) / "audio_to_text"
 data_path = Path(config.PATH_TO_DATA_DIR) / "annotation" / "data2.xlsx"
 output_dir = Path(config.PATH_TO_QUESTION_DIR) / "test_question"
 TARGET_VID = 8745
@@ -58,6 +60,8 @@ QWEN_API_KEY = os.environ.get("QWEN_API_KEY", "")
 API_SLEEP_MIN = 1.0
 API_SLEEP_MAX = 3.0
 API_MAX_RETRY = 3
+MAX_CONTEXT_SUBVIDEOS = 3
+whisper_model = None
 
 REQUIRED_COLUMNS = {
     "Vid",
@@ -76,9 +80,11 @@ OPTION_LETTERS = ["A", "B", "C", "D"]
 
 """参数解析器统一在这里设置，参数尽量少"""
 parser = argparse.ArgumentParser()
-parser.add_argument("--num_per_type", type=int, default=1, help="每类题目生成数量")
+parser.add_argument("--num_per_type", type=int, default=10, help="每类题目生成数量")
 parser.add_argument("--seed", type=int, default=42, help="随机种子")
 parser.add_argument("--test_vid_ratio", type=float, default=0.2, help="没有 mcq_train.jsonl 时的测试 Vid 比例")
+parser.add_argument("--whisper_model", default="small", help="Whisper 模型名称")
+parser.add_argument("--gpu", type=int, default=4, help="Whisper 使用的 GPU，-1 表示 CPU")
 args = parser.parse_args()
 rng = random.Random(args.seed)
 
@@ -104,7 +110,6 @@ def read_subtitle_text(Vid, sub_id, start_time: float, end_time: float) -> str:
     start_bound = max(0.0, float(start_time) - 2.0)
     end_bound = float(end_time) + 2.0
     kept, cur_start, cur_end, cur_text = [], None, None, []
-
     for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
         text = line.strip()
         if not text or text == "WEBVTT" or text.isdigit():
@@ -118,40 +123,131 @@ def read_subtitle_text(Vid, sub_id, start_time: float, end_time: float) -> str:
             cur_text = []
         else:
             cur_text.append(text)
-
     if cur_start is not None and cur_text and cur_start <= end_bound and cur_end >= start_bound:
         kept.append(" ".join(cur_text))
     return " ".join(" ".join(kept).split())[:2000]
 
 
-def get_context_frame_paths(Vid, sub_id, direction: str) -> list:
+def get_or_extract_frame_paths(Vid, sub_id, num_frames: int) -> list:
     """
-    作用：读取同一 Vid 中当前 sub_id 之前或之后所有子视频的 8 帧图片路径。
+    作用：读取指定帧数的抽帧图片；如果不存在，就从视频抽取并保存到 frames_{num_frames}/{Vid}/{sub_id}。
+    输入：Vid、sub_id、num_frames。
+    输出：抽帧图片路径列表 list。
+    """
+    save_dir = Path(config.PATH_TO_PROCESSED_DIR) / f"frames_{num_frames}" / str(Vid) / str(sub_id)
+    frame_paths = sorted(save_dir.glob("*.jpg")) + sorted(save_dir.glob("*.png"))
+    if len(frame_paths) >= num_frames:
+        return frame_paths
+
+    video_path = video_dir / str(Vid) / f"{sub_id}.mp4"
+    if not video_path.exists():
+        return frame_paths
+
+    import cv2
+    import numpy as np
+
+    save_dir.mkdir(parents=True, exist_ok=True)
+    cap = cv2.VideoCapture(str(video_path))
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    if total_frames <= 0:
+        cap.release()
+        return frame_paths
+
+    for frame_order, frame_index in enumerate(np.linspace(0, total_frames - 1, num_frames).astype(int).tolist()):
+        image_path = save_dir / f"frame_{frame_order:03d}.jpg"
+        if image_path.exists():
+            continue
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(frame_index))
+        ok, frame = cap.read()
+        if ok:
+            cv2.imwrite(str(image_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 100])
+    cap.release()
+    return sorted(save_dir.glob("*.jpg")) + sorted(save_dir.glob("*.png"))
+
+
+def transcribe_audio(audio_path: Path, Vid, sub_id) -> str:
+    """
+    作用：用 Whisper 将 wav 音频转写成文本，并缓存到 processed/audio_to_text。
+    输入：audio_path 音频路径、Vid、sub_id。
+    输出：音频转写文本 str。
+    """
+    save_path = audio_text_root / str(Vid) / f"{sub_id}.txt"
+    if save_path.exists():
+        return save_path.read_text(encoding="utf-8").strip()
+    if not audio_path.exists():
+        return ""
+    global whisper_model
+    device = "cpu" if args.gpu == -1 else f"cuda:{args.gpu}"
+    if whisper_model is None:
+        whisper_model = whisper.load_model(
+            name=args.whisper_model,
+            device=device,
+            download_root=str(Path(config.PATH_TO_MODEL_DIR) / "huggingface_model" / "whisper"),
+        )
+    result = whisper_model.transcribe(str(audio_path), verbose=False, fp16=False)
+    audio_text = " ".join(segment.get("text", "") for segment in result.get("segments", [])).strip()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    save_path.write_text(audio_text, encoding="utf-8")
+    return audio_text
+
+
+def read_full_subtitle_text(Vid, sub_id) -> str:
+    """
+    作用：读取某个子视频完整 vtt 字幕文本。
+    输入：Vid、sub_id。
+    输出：去掉时间戳后的字幕文本 str。
+    """
+    path = subtitle_dir / str(Vid) / f"{sub_id}.vtt"
+    if not path.exists():
+        return ""
+    lines = []
+    for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        text = line.strip()
+        if text and text != "WEBVTT" and "-->" not in text and not text.isdigit():
+            lines.append(text)
+    return " ".join(" ".join(lines).split())[:2000]
+
+
+def get_context_frame_paths(Vid, sub_id, direction: str) -> dict:
+    """
+    作用：读取当前子视频的 16 帧，以及同一 Vid 中当前 sub_id 之前或之后所有子视频的 8 帧、字幕和音频转写文本。
     输入：Vid、sub_id、direction；direction 为 before 或 after。
-    输出：上下文子视频的 frames_8 图片路径列表 list。
+    输出：包含 current_frame_paths、context_frame_paths、context_audio_text、context_subtitle_text 的 dict。
     """
-    root = context_frame_root / str(Vid)
-    if not root.exists():
-        return []
+    current_frame_paths = get_or_extract_frame_paths(Vid, sub_id, 16)  # 输入：Vid、sub_id、16；输出：当前子视频 frames_16 图片路径。
+
     current_sub_id = int(float(sub_id))
-    frame_paths = []
-    for sub_dir in sorted(root.iterdir(), key=lambda path: int(float(path.name))):
-        if not sub_dir.is_dir():
-            continue
-        sub_dir_id = int(float(sub_dir.name))
-        if direction == "before" and sub_dir_id >= current_sub_id:
-            continue
-        if direction == "after" and sub_dir_id <= current_sub_id:
-            continue
-        frame_paths.extend(sorted(sub_dir.glob("*.jpg")))
-        frame_paths.extend(sorted(sub_dir.glob("*.png")))
-    return frame_paths
+    context_frame_paths = []
+    context_audio_texts = []
+    context_subtitle_texts = []
+    video_root = video_dir / str(Vid)
+    sub_ids = sorted(int(path.stem) for path in video_root.glob("*.mp4") if path.stem.replace(".", "", 1).isdigit())
+    if direction == "before":
+        sub_ids = [item for item in sub_ids if item < current_sub_id][-MAX_CONTEXT_SUBVIDEOS:]
+    else:
+        sub_ids = [item for item in sub_ids if item > current_sub_id][:MAX_CONTEXT_SUBVIDEOS]
+    for sub_dir_id in sub_ids:
+        context_frame_paths.extend(get_or_extract_frame_paths(Vid, sub_dir_id, 8))  # 输入：Vid、上下文sub_id、8；输出：上下文 frames_8 图片路径。
+        audio_path = audio_dir / str(Vid) / f"{sub_dir_id}.wav"
+        if audio_path.exists():
+            audio_text = transcribe_audio(audio_path, Vid, sub_dir_id)  # 输入：上下文音频路径、Vid、sub_id；输出：Whisper 转写文本。
+            if audio_text:
+                context_audio_texts.append(f"sub_id {sub_dir_id}: {audio_text}")
+        subtitle_text = read_full_subtitle_text(Vid, sub_dir_id)  # 输入：Vid、上下文sub_id；输出：上下文字幕文本。
+        if subtitle_text:
+            context_subtitle_texts.append(f"sub_id {sub_dir_id}: {subtitle_text}")
+    return {
+        "current_frame_paths": current_frame_paths,
+        "context_frame_paths": context_frame_paths,
+        "context_audio_text": "\n".join(context_audio_texts),
+        "context_subtitle_text": "\n".join(context_subtitle_texts),
+    }
 
 
-def build_prompt(sample: dict, question_type: str, subtitle_text: str, context_frame_paths: list = None) -> str:
+def build_prompt(sample: dict, question_type: str, context_frame_paths: list = None, audio_text: str = "", context_audio_text: str = "", subtitle_text: str = "", context_subtitle_text: str = "") -> str:
     """
     作用：为一个样本和问题类型构建 Qwen3 输入提示词。
-    输入：sample 字典、question_type 字符串、subtitle_text 字符串、context_frame_paths 上下文 8 帧路径列表。
+    输入：sample 字典、question_type 字符串、context_frame_paths 上下文 8 帧路径列表、audio_text 当前音频转写文本、context_audio_text 上下文音频转写文本、subtitle_text 当前字幕、context_subtitle_text 上下文字幕。
     输出：prompt 字符串。
     """
     if question_type == "emotion":
@@ -198,13 +294,17 @@ def build_prompt(sample: dict, question_type: str, subtitle_text: str, context_f
             "audio_path": str(audio_dir / str(sample["Vid"]) / f"{sample['sub_id']}.wav"),
             "frame_dir": str(frame_root / str(sample["Vid"]) / str(sample["sub_id"])),
             "future_8frame_context_count": len(context_frame_paths or []),
+            "future_subtitle_text": context_subtitle_text,
+            "future_audio_transcript": context_audio_text,
             "subtitle_text": subtitle_text,
+            "audio_transcript": audio_text,
         }
         task = (
             "Create an MCQ asking what will most likely happen right after the current sub_id segment, "
             "or what the main participant will most likely intend to do next. "
-            "The current sub_id segment is the question anchor. Use the future sub_id 8-frame context only as evidence "
+            "The current sub_id segment is the question anchor. Use the future sub_id frames, subtitles, and audio transcripts as auxiliary evidence "
             "for what actually happens afterward, so the correct answer is as accurate as possible. "
+            "If subtitles and Whisper transcripts conflict, prefer the evidence that is clearer, more segment-relevant, and more consistent with the frames. "
             "Do not make the future clips themselves the question target. "
             "All options must describe next-step behavioral intentions or immediate next events."
         )
@@ -221,14 +321,18 @@ def build_prompt(sample: dict, question_type: str, subtitle_text: str, context_f
             "audio_path": str(audio_dir / str(sample["Vid"]) / f"{sample['sub_id']}.wav"),
             "frame_dir": str(frame_root / str(sample["Vid"]) / str(sample["sub_id"])),
             "previous_8frame_context_count": len(context_frame_paths or []),
+            "previous_subtitle_text": context_subtitle_text,
+            "previous_audio_transcript": context_audio_text,
             "subtitle_text": subtitle_text,
+            "audio_transcript": audio_text,
         }
         task = (
             "Create an MCQ asking for my high-level ego-centric summary of the current sub_id segment. "
             "The correct option should describe what I, as the camera wearer, understand, feel, or experience in the current segment. "
             "The correct option must not be only an emotion word, only a reason rewrite, or only a next action. "
-            "Use the previous sub_id 8-frame context only as background clues for understanding the current segment. "
-            "Do not summarize the previous clips; the answer must summarize the current sub_id segment."
+            "Use the previous sub_id frames, subtitles, and audio transcripts only as background clues for understanding the current segment. "
+            "If subtitles and Whisper transcripts conflict, prefer the evidence that is clearer, more segment-relevant, and more consistent with the frames. "
+            "Do not summarize the previous clips themselves; the answer must summarize the current sub_id segment."
         )
 
     return f"""
@@ -248,8 +352,9 @@ Task: {task}
 Rules:
 - Options should be concise and rely on the real segment content.
 - For emotion and reason, use annotation fields only.
-- For predict, future sub_id frames are evidence for the next event after the current segment; the question still anchors on the current sub_id.
-- For ego_summary, previous sub_id frames are background clues; the answer must summarize the current sub_id from my first-person perspective.
+- For predict, future sub_id frames/subtitles/audio transcripts are auxiliary evidence for the next event after the current segment; the question still anchors on the current sub_id.
+- For ego_summary, previous sub_id frames/subtitles/audio transcripts are background clues; the answer must summarize the current sub_id from my first-person perspective.
+- If subtitle text and Whisper transcript conflict, prefer the evidence that best matches the frames and current localized segment.
 - For ego_summary, the subject is always the camera wearer / I.
 - Incorrect options should be plausible misunderstandings.
 - Incorrect options must not repeat or be semantically equivalent to the correct answer.
@@ -272,17 +377,13 @@ def encode_media(path: Path) -> str:
     return base64.b64encode(path.read_bytes()).decode("utf-8")
 
 
-def call_qwen3(prompt: str, frame_paths: list = None, audio_path: Path = None, context_frame_paths: list = None, context_label: str = "") -> dict:
+def call_qwen3(prompt: str, frame_paths: list = None, context_frame_paths: list = None, context_label: str = "") -> dict:
     """
     作用：使用 API 模式调用 Qwen3，并解析模型返回的严格 JSON。
-    输入：prompt 字符串；可选 frame_paths 当前抽帧图片路径列表、audio_path 音频路径、context_frame_paths 上下文 8 帧路径列表、context_label 上下文说明。
+    输入：prompt 字符串；可选 frame_paths 当前抽帧图片路径列表、context_frame_paths 上下文 8 帧路径列表、context_label 上下文说明。
     输出：包含 question、correct_answer_text、incorrect_options 的字典。
     """
     content = [{"type": "text", "text": prompt}]
-    if audio_path is not None:
-        audio_base64 = encode_media(audio_path)  # 输入：音频路径；输出：音频 base64 字符串。
-        if audio_base64:
-            content.append({"type": "input_audio", "input_audio": {"data": audio_base64, "format": "wav"}})
     if frame_paths:
         content.append({"type": "text", "text": "Current localized segment frames:"})
         for frame_path in frame_paths:
@@ -308,7 +409,7 @@ def call_qwen3(prompt: str, frame_paths: list = None, audio_path: Path = None, c
             },
             {"role": "user", "content": content if len(content) > 1 else prompt},
         ],
-        "temperature": 0.5,
+        "temperature": 0.2,
         "max_completion_tokens": 1024,
     }
     if len(content) == 1:
@@ -461,42 +562,53 @@ for question_type in QUESTION_TYPES:
         if counts[question_type] >= args.num_per_type:
             break
 
-        subtitle_text = ""
-        if question_type in ["predict", "ego_summary"]:
-            subtitle_text = read_subtitle_text(  # 输入：Vid、sub_id、start/end 时间；输出：字幕文本 str。
-                sample["Vid"],
-                sample["sub_id"],
-                sample["start_time"],
-                sample["end_time"],
-            )
         video_path = video_dir / str(sample["Vid"]) / f"{sample['sub_id']}.mp4"
         audio_path = audio_dir / str(sample["Vid"]) / f"{sample['sub_id']}.wav"
-        frame_paths = sorted((frame_root / str(sample["Vid"]) / str(sample["sub_id"])).glob("*.jpg"))
+        frame_paths = []
         context_frame_paths = []
+        audio_text = ""
+        context_audio_text = ""
+        subtitle_text = ""
+        context_subtitle_text = ""
         context_label = ""
         if question_type == "predict":
-            context_frame_paths = get_context_frame_paths(  # 输入：Vid、sub_id、after；输出：之后子视频 frames_8 图片路径列表。
+            frame_data = get_context_frame_paths(  # 输入：Vid、sub_id、after；输出：当前子视频 frames_16 和之后子视频 frames_8/audio_text/subtitle_text。
                 sample["Vid"],
                 sample["sub_id"],
                 "after",
             )
+            frame_paths = frame_data["current_frame_paths"]
+            context_frame_paths = frame_data["context_frame_paths"]
+            audio_text = transcribe_audio(audio_path, sample["Vid"], sample["sub_id"])  # 输入：当前音频路径、Vid、sub_id；输出：Whisper 转写文本。
+            context_audio_text = frame_data["context_audio_text"]
+            subtitle_text = read_subtitle_text(sample["Vid"], sample["sub_id"], sample["start_time"], sample["end_time"])  # 输入：Vid、sub_id、start/end时间；输出：当前字幕文本。
+            context_subtitle_text = frame_data["context_subtitle_text"]
             context_label = "Future sub_id 8-frame context from the same Vid, ordered by time:"
         elif question_type == "ego_summary":
-            context_frame_paths = get_context_frame_paths(  # 输入：Vid、sub_id、before；输出：之前子视频 frames_8 图片路径列表。
+            frame_data = get_context_frame_paths(  # 输入：Vid、sub_id、before；输出：当前子视频 frames_16 和之前子视频 frames_8/audio_text/subtitle_text。
                 sample["Vid"],
                 sample["sub_id"],
                 "before",
             )
+            frame_paths = frame_data["current_frame_paths"]
+            context_frame_paths = frame_data["context_frame_paths"]
+            audio_text = transcribe_audio(audio_path, sample["Vid"], sample["sub_id"])  # 输入：当前音频路径、Vid、sub_id；输出：Whisper 转写文本。
+            context_audio_text = frame_data["context_audio_text"]
+            subtitle_text = read_subtitle_text(sample["Vid"], sample["sub_id"], sample["start_time"], sample["end_time"])  # 输入：Vid、sub_id、start/end时间；输出：当前字幕文本。
+            context_subtitle_text = frame_data["context_subtitle_text"]
             context_label = "Previous sub_id 8-frame context from the same Vid, ordered by time:"
-        prompt = build_prompt(  # 输入：样本、题型、字幕、上下文 8 帧路径；输出：Qwen3 prompt 字符串。
+        prompt = build_prompt(  # 输入：样本、题型、上下文8帧路径、当前/上下文音频转写文本、当前/上下文字幕；输出：Qwen3 prompt 字符串。
             sample,
             question_type,
-            subtitle_text,
             context_frame_paths,
+            audio_text,
+            context_audio_text,
+            subtitle_text,
+            context_subtitle_text,
         )
         if question_type in ["predict", "ego_summary"]:
-            # 输入：prompt、当前抽帧图片路径列表、音频路径、上下文 8 帧路径列表、上下文说明；输出：多模态生成的题目 JSON 字典。
-            result = call_qwen3(prompt, frame_paths, audio_path, context_frame_paths, context_label)
+            # 输入：prompt、当前抽帧图片路径列表、上下文抽帧图片路径列表、上下文说明；输出：多模态生成的题目 JSON 字典。
+            result = call_qwen3(prompt, frame_paths, context_frame_paths, context_label)
         else:
             result = call_qwen3(prompt)  # 输入：prompt 字符串；输出：文本生成的题目 JSON 字典。
         if question_type == "emotion":
@@ -531,29 +643,6 @@ for question_type in QUESTION_TYPES:
             }
         )
         answer_keys.append({"qid": qid, "answer": answer})
-        generation_basis = {
-            "note": "正式题目文件不包含这些依据。本实验只生成 8745_3；predict 使用之后子视频 frames_8，ego_summary 使用之前子视频 frames_8。",
-            "multimodal_used": question_type in ["predict", "ego_summary"],
-            "start_time": sample["start_time"],
-            "end_time": sample["end_time"],
-        }
-        if question_type in ["emotion", "reason"]:
-            generation_basis["person"] = sample["person"]
-            generation_basis["emotion"] = sample["emotion"]
-            if question_type == "reason":
-                generation_basis["reason"] = sample["reason"]
-            generation_basis["annotation_only"] = True
-        else:
-            generation_basis["annotation_fields_used"] = ["person", "emotion", "reason", "start_time", "end_time"]
-            generation_basis["video_path"] = str(video_path)
-            generation_basis["audio_path"] = str(audio_path)
-            generation_basis["frame_paths"] = [str(path) for path in frame_paths]
-            if question_type == "predict":
-                generation_basis["future_8frame_paths"] = [str(path) for path in context_frame_paths]
-            if question_type == "ego_summary":
-                generation_basis["previous_8frame_paths"] = [str(path) for path in context_frame_paths]
-            generation_basis["subtitle_text"] = subtitle_text
-
         review_rows.append(
             {
                 "qid": qid,
@@ -562,7 +651,10 @@ for question_type in QUESTION_TYPES:
                 "person": sample["person"],
                 "question_type": question_type,
                 "question": " ".join(str(result["question"]).split()),
-                "options": options,
+                "A": options.get("A", ""),
+                "B": options.get("B", ""),
+                "C": options.get("C", ""),
+                "D": options.get("D", ""),
                 "answer": answer,
                 "answer_text": options[answer],
                 "emotion": sample["emotion"],
@@ -570,12 +662,8 @@ for question_type in QUESTION_TYPES:
                 "reason": sample["reason"],
                 "start_time": sample["start_time"],
                 "end_time": sample["end_time"],
-                "generation_basis": generation_basis,
-                "video_path": str(video_dir / str(sample["Vid"]) / f"{sample['sub_id']}.mp4"),
-                "audio_path": str(audio_dir / str(sample["Vid"]) / f"{sample['sub_id']}.wav"),
-                "subtitle_path": str(subtitle_dir / str(sample["Vid"]) / f"{sample['sub_id']}.vtt"),
-                "frame_dir": str(frame_root / str(sample["Vid"]) / str(sample["sub_id"])),
                 "subtitle_text": subtitle_text,
+                "audio_transcript": audio_text,
             }
         )
         counts[question_type] += 1
@@ -594,31 +682,7 @@ with ANSWER_KEY_PATH.open("w", encoding="utf-8") as f:
 with REVIEW_PATH.open("w", encoding="utf-8") as f:
     for row in review_rows:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
-review_csv_rows = []
-for row in review_rows:
-    review_csv_rows.append(
-        {
-            "qid": row["qid"],
-            "Vid": row["Vid"],
-            "sub_id": row["sub_id"],
-            "person": row["person"],
-            "question_type": row["question_type"],
-            "question": row["question"],
-            "A": row["options"].get("A", ""),
-            "B": row["options"].get("B", ""),
-            "C": row["options"].get("C", ""),
-            "D": row["options"].get("D", ""),
-            "answer": row["answer"],
-            "answer_text": row["answer_text"],
-            "emotion": row["emotion"],
-            "degree": row["degree"],
-            "reason": row["reason"],
-            "start_time": row["start_time"],
-            "end_time": row["end_time"],
-            "subtitle_text": row["subtitle_text"],
-        }
-    )
-pd.DataFrame(review_csv_rows).to_csv(REVIEW_CSV_PATH, index=False, encoding="utf-8-sig")
+pd.DataFrame(review_rows).to_csv(REVIEW_CSV_PATH, index=False, encoding="utf-8-sig")
 
 print(f"total_questions: {len(questions)}", flush=True)
 print(f"counts_by_type: {counts}", flush=True)

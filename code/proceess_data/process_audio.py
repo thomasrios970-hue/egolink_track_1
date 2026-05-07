@@ -2,13 +2,14 @@
 从音频、字幕和 data2 情绪标注中生成每个视频的 audio_json 预处理文件。
 
 执行逻辑：
-1. 读取 config.PATH_TO_AUDIO_MANIFEST，manifest 需要包含 Vid、sub_id、audio_path 和 subtitle_path 字段。
-2. 优先从 subtitle_path 解析 WebVTT 字幕；如果字幕不存在或解析为空，再用 openai-whisper 从 audio_path 生成 segments。
-3. 从 audio_path 读取 wav 音频，计算整段音量、语速、静音比例、高音和笑声等启发式特征。
-4. 从同目录的 emotion_sort_manifest.csv 读取 data2 情绪标注，并按 Vid/sub_id 写入 tone_hint 相关字段。
-5. 在顶层 JSON 中新增 clips：有 data2 时按 data2 的 start_time/end_time 切小段；没有 data2 时按字幕/ASR segments 切小段。
-6. 将每个视频保存为 Path(config.PATH_TO_PROCESSED_DIR) / "audio_json" / Vid / f"{sub_id}.json"。
-7. 如果目标 json 已存在且字段完整则自动跳过；旧格式缺 clips 时会自动补生成。
+1. 遍历 Path(config.PATH_TO_DATA_DIR) / "E3" / "E3" 下所有 mp4 视频。
+2. 每个视频都生成 Path(config.PATH_TO_DATA_DIR) / "audio" / Vid / f"{sub_id}.wav"；如果 wav 不存在则用 ffmpeg 从视频抽取。
+3. 优先从 subtitle_path 解析 WebVTT 字幕；如果字幕不存在或解析为空，再用 openai-whisper 从 audio_path 生成 segments。
+4. 从 audio_path 读取 wav 音频，计算整段音量、语速、静音比例、高音和笑声等启发式特征。
+5. 从 data/manifest/emotion_sort_manifest.csv 读取 data2 情绪标注，并按 Vid/sub_id 写入 tone_hint 相关字段。
+6. 在顶层 JSON 中新增 clips：有 data2 时按 data2 的 start_time/end_time 切小段；没有 data2 时按字幕/ASR segments 切小段。
+7. 将每个视频保存为 Path(config.PATH_TO_PROCESSED_DIR) / "audio_json" / Vid / f"{sub_id}.json"。
+8. 如果目标 json 已存在且字段完整则自动跳过。
 
 运行示例：
 python code/proceess_data/process_audio.py
@@ -20,6 +21,7 @@ pip install openai-whisper
 import html
 import json
 import re
+import subprocess
 import sys
 from collections import Counter
 from pathlib import Path
@@ -31,7 +33,7 @@ import config
 PROGRESS_INTERVAL = 10
 WHISPER_MODEL_NAME = "small"
 WHISPER_GPU = 4
-WHISPER_DOWNLOAD_ROOT = Path(config.PATH_TO_HUGGINGFACE_MODEL) / "whisper"
+WHISPER_DOWNLOAD_ROOT = Path(config.PATH_TO_MODEL_DIR) / "huggingface_model" / "whisper"
 LAUGHTER_KEYWORDS = (
     "laugh",
     "laughs",
@@ -618,25 +620,75 @@ def existing_json_is_complete(path):
     return all(field in payload for field in AUDIO_JSON_FIELDS)
 
 
+def ensure_audio_wav(video_path: Path, audio_path: Path):
+    """
+    作用：如果 wav 音频不存在，就从 mp4 视频中提取 16k 单声道 wav。
+    输入：video_path 视频路径、audio_path 音频保存路径。
+    输出：无输出；失败时抛出 RuntimeError。
+    """
+    if audio_path.exists():
+        return
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", str(video_path),
+        "-vn",
+        "-acodec", "pcm_s16le",
+        "-ar", "16000",
+        "-ac", "1",
+        str(audio_path),
+    ]
+    result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr[-500:])
+
+
+def build_all_video_rows(pd):
+    """
+    作用：扫描全部 mp4 视频，并拼出每条视频对应的 audio_path 和 subtitle_path。
+    输入：pd 模块。
+    输出：包含 Vid、sub_id、video_path、audio_path、subtitle_path 的 DataFrame。
+    """
+    rows = []
+    video_root = Path(config.PATH_TO_DATA_DIR) / "E3" / "E3"
+    audio_root = Path(config.PATH_TO_DATA_DIR) / "audio"
+    subtitle_root = Path(config.PATH_TO_DATA_DIR) / "subtext"
+    def sort_key(path):
+        vid = path.parent.name
+        sub_id = path.stem
+        vid_key = (0, int(vid)) if vid.isdigit() else (1, vid)
+        sub_key = (0, int(sub_id)) if sub_id.isdigit() else (1, sub_id)
+        return vid_key, sub_key
+
+    for video_path in sorted(video_root.glob("*/*.mp4"), key=sort_key):
+        vid = video_path.parent.name
+        sub_id = video_path.stem
+        rows.append(
+            {
+                "Vid": vid,
+                "sub_id": sub_id,
+                "video_path": str(video_path),
+                "audio_path": str(audio_root / vid / f"{sub_id}.wav"),
+                "subtitle_path": str(subtitle_root / vid / f"{sub_id}.vtt"),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def main():
     import numpy as np
     import pandas as pd
     import soundfile as sf
 
-    manifest_path = Path(config.PATH_TO_AUDIO_MANIFEST)
-    emotion_manifest_path = manifest_path.parent / "emotion_sort_manifest.csv"
+    emotion_manifest_path = Path(config.PATH_TO_DATA_DIR) / "manifest" / "emotion_sort_manifest.csv"
     audio_json_root = Path(config.PATH_TO_PROCESSED_DIR) / "audio_json"
 
-    df = pd.read_csv(manifest_path)
-    required_columns = {"Vid", "sub_id", "audio_path", "subtitle_path"}
-    missing_columns = required_columns - set(df.columns)
-    if missing_columns:
-        raise ValueError(f"manifest missing columns: {sorted(missing_columns)}")
-
+    df = build_all_video_rows(pd)  # 输入：pd 模块；输出：全部视频对应的音频处理表。
     emotion_map = load_emotion_annotations(emotion_manifest_path, pd)
     audio_json_root.mkdir(parents=True, exist_ok=True)
 
-    print("manifest:", manifest_path)
+    print("video_root:", Path(config.PATH_TO_DATA_DIR) / "E3" / "E3")
     print("emotion_manifest:", emotion_manifest_path)
     print("audio_json_root:", audio_json_root)
 
@@ -649,6 +701,13 @@ def main():
         vid = str(row["Vid"])
         sub_id = str(row["sub_id"])
         save_path = audio_json_root / vid / f"{sub_id}.json"
+
+        try:
+            ensure_audio_wav(Path(row["video_path"]), Path(row["audio_path"]))  # 输入：视频路径、音频路径；输出：无，确保 wav 存在。
+        except Exception as e:
+            failed += 1
+            print(f"failed audio extract: Vid={vid}, sub_id={sub_id}, {e}")
+            continue
 
         if existing_json_is_complete(save_path):
             skipped += 1
