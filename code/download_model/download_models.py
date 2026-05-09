@@ -47,6 +47,7 @@ for model_type, models in huggingface_model.items():
 modelscope_model={
     "llm_model":{
         "Qwen/Qwen2.5-Omni-7B": "Qwen2.5-Omni-7B",
+        "Qwen/Qwen3-Omni-30B-A3B-Thinking": "Qwen3-Omni-30B-A3B-Thinking"
     },
     "audio_models":{
         "Qwen/Qwen3-ForcedAligner-0.6B": "Qwen3-ForcedAligner-0.6B",
