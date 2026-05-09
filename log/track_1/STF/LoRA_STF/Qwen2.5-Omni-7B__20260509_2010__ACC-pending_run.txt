@@ -1,0 +1,1223 @@
+
+
+================================================================================
+swift sft --model /data/wzw/egolink_race/model/modelscope_model/Qwen2.5-Omni-7B --dataset log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending_train_filtered.jsonl --val_dataset log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending_val_filtered.jsonl --tuner_type lora --lora_rank 8 --lora_alpha 32 --target_modules all-linear --torch_dtype bfloat16 --num_train_epochs 1 --per_device_train_batch_size 1 --per_device_eval_batch_size 1 --gradient_accumulation_steps 8 --learning_rate 1e-4 --max_length 2048 --eval_steps 5 --save_steps 5 --save_total_limit 2 --logging_steps 5 --output_dir checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending --add_version false --warmup_ratio 0.05 --dataloader_num_workers 0 --max_steps 5
+run sh: `/opt/conda/envs/egolink/bin/python3.10 -m torch.distributed.run --nproc_per_node 4 /opt/conda/envs/egolink/lib/python3.10/site-packages/swift/cli/sft.py --model /data/wzw/egolink_race/model/modelscope_model/Qwen2.5-Omni-7B --dataset log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending_train_filtered.jsonl --val_dataset log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending_val_filtered.jsonl --tuner_type lora --lora_rank 8 --lora_alpha 32 --target_modules all-linear --torch_dtype bfloat16 --num_train_epochs 1 --per_device_train_batch_size 1 --per_device_eval_batch_size 1 --gradient_accumulation_steps 8 --learning_rate 1e-4 --max_length 2048 --eval_steps 5 --save_steps 5 --save_total_limit 2 --logging_steps 5 --output_dir checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending --add_version false --warmup_ratio 0.05 --dataloader_num_workers 0 --max_steps 5`
+
+*****************************************
+Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+*****************************************
+[INFO:swift] Successfully registered `/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/dataset/data/dataset_info.json`.
+[INFO:swift] rank: 0, local_rank: 0, world_size: 4, local_world_size: 4
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+`torch_dtype` is deprecated! Use `dtype` instead!
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+[INFO:swift] Because len(args.val_dataset) > 0, setting split_dataset_ratio: 0.0
+[INFO:swift] Setting args.lazy_tokenize: True
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+`torch_dtype` is deprecated! Use `dtype` instead!
+[INFO:swift] args: SftArguments(
+_n_gpu=-1,
+acc_strategy=token,
+accelerator_config={'dispatch_batches': False},
+adafactor=False,
+adalora_beta1=0.85,
+adalora_beta2=0.85,
+adalora_deltaT=1,
+adalora_init_r=12,
+adalora_orth_reg_weight=0.5,
+adalora_target_r=8,
+adalora_tfinal=0,
+adalora_tinit=0,
+adam_beta1=0.9,
+adam_beta2=0.95,
+adam_epsilon=1e-08,
+adapter_act=gelu,
+adapter_length=128,
+adapters=[],
+add_non_thinking_prefix=True,
+add_version=False,
+agent_template=None,
+aligner_lr=None,
+attn_impl=None,
+auto_find_batch_size=False,
+average_tokens_across_devices=True,
+batch_eval_metrics=False,
+bf16=True,
+bf16_full_eval=False,
+bnb_4bit_compute_dtype=torch.bfloat16,
+bnb_4bit_quant_storage=None,
+bnb_4bit_quant_type=nf4,
+bnb_4bit_use_double_quant=True,
+boft_block_num=0,
+boft_block_size=4,
+boft_dropout=0.0,
+boft_n_butterfly_factor=1,
+cached_dataset=[],
+cached_val_dataset=[],
+callbacks=[],
+check_model=True,
+columns={},
+create_checkpoint_symlink=False,
+custom_dataset_info=[],
+custom_register_path=[],
+data_seed=42,
+dataloader_drop_last=False,
+dataloader_num_workers=0,
+dataloader_persistent_workers=False,
+dataloader_pin_memory=True,
+dataloader_prefetch_factor=None,
+dataset=['log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending_train_filtered.jsonl'],
+dataset_num_proc=1,
+dataset_shuffle=True,
+ddp_backend=None,
+ddp_broadcast_buffers=None,
+ddp_bucket_cap_mb=None,
+ddp_find_unused_parameters=None,
+ddp_timeout=18000000,
+debug=None,
+deepspeed=None,
+deepspeed_autotp_size=None,
+device_groups=None,
+device_map=None,
+disable_auto_column_mapping=False,
+disable_tqdm=None,
+do_eval=False,
+do_predict=False,
+do_train=False,
+download_mode=reuse_dataset_if_exists,
+ds3_gather_for_generation=True,
+early_stop_interval=None,
+enable_channel_loss=False,
+enable_dft_loss=False,
+enable_npu_model_patch=True,
+enable_thinking=None,
+eval_accumulation_steps=None,
+eval_dataset=[],
+eval_dataset_args=None,
+eval_delay=0,
+eval_do_concat_batches=True,
+eval_generation_config=None,
+eval_limit=None,
+eval_metric=None,
+eval_on_start=False,
+eval_steps=5.0,
+eval_strategy=steps,
+eval_use_evalscope=False,
+eval_use_gather_object=False,
+experts_impl=None,
+external_plugins=[],
+extra_eval_args=None,
+fourier_n_frequency=2000,
+fourier_scaling=300.0,
+fp16=False,
+fp16_backend=auto,
+fp16_full_eval=False,
+fp16_opt_level=O1,
+freeze_aligner=True,
+freeze_llm=False,
+freeze_parameters=[],
+freeze_parameters_ratio=0.0,
+freeze_parameters_regex=None,
+freeze_vit=True,
+fsdp=[],
+fsdp_config=None,
+fsdp_min_num_params=0,
+fsdp_transformer_layer_cls_to_wrap=None,
+full_determinism=False,
+galore_cos_threshold=0.4,
+galore_gamma_proj=2,
+galore_optim_per_parameter=False,
+galore_proj_bits=4,
+galore_proj_group_size=256,
+galore_proj_quant=False,
+galore_proj_type=std,
+galore_quantization=False,
+galore_queue_size=5,
+galore_rank=128,
+galore_scale=1.0,
+galore_target_modules=None,
+galore_update_proj_gap=50,
+galore_with_embedding=False,
+generation_config=None,
+generation_max_length=None,
+generation_num_beams=None,
+gradient_accumulation_steps=8,
+gradient_checkpointing=True,
+gradient_checkpointing_kwargs=None,
+greater_is_better=False,
+group_by_length=False,
+half_precision_backend=auto,
+hqq_axis=None,
+hub_always_push=False,
+hub_model_id=None,
+hub_private_repo=None,
+hub_revision=None,
+hub_strategy=every_save,
+hub_token=<HUB_TOKEN>,
+ignore_args_error=False,
+ignore_data_skip=False,
+include_for_metrics=[],
+include_inputs_for_metrics=False,
+include_num_input_tokens_seen=False,
+include_tokens_per_second=False,
+init_strategy=None,
+init_weights=True,
+interleave_prob=None,
+jit_mode_eval=False,
+label_names=None,
+label_smoothing_factor=0.0,
+lazy_tokenize=True,
+learning_rate=0.0001,
+length_column_name=length,
+liger_kernel_config=None,
+lisa_activated_layers=0,
+lisa_step_interval=20,
+llamapro_num_groups=None,
+llamapro_num_new_blocks=4,
+load_args=False,
+load_best_model_at_end=False,
+load_data_args=False,
+load_from_cache_file=False,
+local_rank=0,
+local_repo_path=None,
+log_level=passive,
+log_level_replica=warning,
+log_on_each_node=True,
+logging_dir=/data/wzw/egolink_race/checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending/runs,
+logging_first_step=True,
+logging_nan_inf_filter=True,
+logging_steps=5,
+logging_strategy=steps,
+logprobs=False,
+lora_alpha=32,
+lora_bias=none,
+lora_dropout=0.05,
+lora_dtype=None,
+lora_ga_batch_size=2,
+lora_ga_direction=ArB2r,
+lora_ga_iters=2,
+lora_ga_max_length=1024,
+lora_ga_scale=stable,
+lora_ga_stable_gamma=16,
+lora_rank=8,
+lorap_lr_ratio=None,
+loss_scale=default,
+loss_type=None,
+lr_scheduler_kwargs=None,
+lr_scheduler_type=cosine,
+max_epochs=None,
+max_grad_norm=1.0,
+max_length=2048,
+max_memory={},
+max_model_len=None,
+max_new_tokens=64,
+max_pixels=None,
+max_shard_size=5GB,
+max_steps=5,
+metric_for_best_model=loss,
+model=/data/wzw/egolink_race/model/modelscope_model/Qwen2.5-Omni-7B,
+model_author=None,
+model_kwargs={},
+model_name=None,
+model_revision=None,
+model_type=qwen2_5_omni,
+modules_to_save=[],
+mp_parameters=,
+neftune_noise_alpha=None,
+new_special_tokens=[],
+no_cuda=False,
+norm_bbox=None,
+num_beams=1,
+num_labels=None,
+num_train_epochs=1.0,
+optim=adamw_torch,
+optim_args=None,
+optim_target_modules=None,
+optimizer=None,
+output_dir=/data/wzw/egolink_race/checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending,
+overwrite_output_dir=False,
+packing=False,
+packing_length=None,
+packing_num_proc=1,
+padding_free=False,
+padding_side=right,
+parallelism_config=None,
+past_index=-1,
+per_device_eval_batch_size=1,
+per_device_train_batch_size=1,
+predict_with_generate=False,
+prediction_loss_only=False,
+problem_type=None,
+project=huggingface,
+push_to_hub=False,
+push_to_hub_model_id=None,
+push_to_hub_organization=None,
+push_to_hub_token=<PUSH_TO_HUB_TOKEN>,
+quant_bits=None,
+quant_method=None,
+ray_exp_name=None,
+ray_scope=last,
+reft_args=None,
+reft_intervention_type=LoreftIntervention,
+reft_layer_key=None,
+reft_layers=None,
+reft_rank=4,
+remove_unused_columns=True,
+repetition_penalty=None,
+report_to=['tensorboard'],
+response_prefix=None,
+restore_callback_states_from_checkpoint=False,
+resume_from_checkpoint=None,
+resume_only_model=False,
+rope_scaling=None,
+router_aux_loss_coef=0.0,
+run_name=/data/wzw/egolink_race/checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending,
+safe_serialization=True,
+save_on_each_node=False,
+save_only_model=False,
+save_safetensors=True,
+save_steps=5.0,
+save_strategy=steps,
+save_total_limit=2,
+seed=42,
+sequence_parallel_size=1,
+shuffle_buffer_size=1000,
+skip_memory_metrics=True,
+sortish_sampler=False,
+split_dataset_ratio=0.0,
+stop_words=[],
+stopping_strategy=first_exhausted,
+stream=False,
+streaming=False,
+strict=False,
+structured_outputs_regex=None,
+swanlab_email_language=zh,
+swanlab_exp_name=None,
+swanlab_mode=cloud,
+swanlab_notification_method=None,
+swanlab_project=ms-swift,
+swanlab_receiver_email=None,
+swanlab_secret=None,
+swanlab_sender_email=None,
+swanlab_smtp_port=None,
+swanlab_smtp_server=None,
+swanlab_token=<SWANLAB_TOKEN>,
+swanlab_webhook_url=None,
+swanlab_workspace=None,
+system=None,
+target_modules=['all-linear'],
+target_parameters=None,
+target_regex=None,
+task_type=causal_lm,
+temperature=0.0,
+template=qwen2_5_omni,
+template_backend=swift,
+tf32=None,
+top_k=None,
+top_logprobs=None,
+top_p=None,
+torch_compile=False,
+torch_compile_backend=None,
+torch_compile_mode=None,
+torch_dtype=torch.bfloat16,
+torch_empty_cache_steps=None,
+torchdynamo=None,
+tpu_metrics_debug=False,
+tpu_num_cores=None,
+trackio_space_id=trackio,
+train_dataloader_shuffle=True,
+trainable_parameters=[],
+trainable_parameters_regex=None,
+truncation_strategy=delete,
+tuner_backend=peft,
+tuner_type=lora,
+use_chat_template=True,
+use_cpu=False,
+use_dora=False,
+use_flash_ckpt=False,
+use_galore=False,
+use_hf=False,
+use_legacy_prediction_loop=False,
+use_liger_kernel=False,
+use_logits_to_keep=None,
+use_mps_device=False,
+use_ray=False,
+use_rslora=False,
+use_swift_lora=False,
+val_dataset=['log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2010__ACC-pending_val_filtered.jsonl'],
+val_dataset_shuffle=False,
+vera_d_initial=0.1,
+vera_dropout=0.0,
+vera_projection_prng_key=0,
+vera_rank=256,
+vit_gradient_checkpointing=False,
+vit_lr=None,
+warmup_ratio=0.05,
+warmup_steps=0,
+weight_decay=0.1,
+zero_hpz_partition_size=None,
+)
+[INFO:swift] Global seed set to 42
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+[INFO:swift] Setting ENABLE_AUDIO_OUTPUT: None. You can adjust this hyperparameter through the environment variable: `ENABLE_AUDIO_OUTPUT`.
+The argument `trust_remote_code` is to be used with Auto classes. It has no effect here and is ignored.
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+The argument `trust_remote_code` is to be used with Auto classes. It has no effect here and is ignored.
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+The argument `trust_remote_code` is to be used with Auto classes. It has no effect here and is ignored.
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.
+The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.
+The argument `trust_remote_code` is to be used with Auto classes. It has no effect here and is ignored.
+Unrecognized keys in `rope_scaling` for 'rope_type'='default': {'mrope_section'}
+The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.
+[INFO:swift] Setting max_ratio: 200. You can adjust this hyperparameter through the environment variable: `MAX_RATIO`.
+[INFO:swift] Setting frame_factor: 2. You can adjust this hyperparameter through the environment variable: `FRAME_FACTOR`.
+[INFO:swift] Setting fps: 2.0. You can adjust this hyperparameter through the environment variable: `FPS`.
+[INFO:swift] Setting fps_min_frames: 4. You can adjust this hyperparameter through the environment variable: `FPS_MIN_FRAMES`.
+[INFO:swift] Setting fps_max_frames: 768. You can adjust this hyperparameter through the environment variable: `FPS_MAX_FRAMES`.
+[INFO:swift] Setting image_max_token_num: 16384. You can adjust this hyperparameter through the environment variable: `IMAGE_MAX_TOKEN_NUM`.
+[INFO:swift] Setting image_min_token_num: 4. You can adjust this hyperparameter through the environment variable: `IMAGE_MIN_TOKEN_NUM`.
+[INFO:swift] Setting spatial_merge_size: 2. You can adjust this hyperparameter through the environment variable: `SPATIAL_MERGE_SIZE`.
+[INFO:swift] Setting video_max_token_num: 768. You can adjust this hyperparameter through the environment variable: `VIDEO_MAX_TOKEN_NUM`.
+[INFO:swift] Setting video_min_token_num: 128. You can adjust this hyperparameter through the environment variable: `VIDEO_MIN_TOKEN_NUM`.
+[INFO:swift] model_kwargs: {'device_map': 'cuda:0', 'dtype': torch.bfloat16}
+
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]
+Loading checkpoint shards:  20%|██        | 1/5 [00:01<00:06,  1.72s/it]
+Loading checkpoint shards:  20%|██        | 1/5 [00:01<00:06,  1.71s/it]
+Loading checkpoint shards:  20%|██        | 1/5 [00:01<00:06,  1.72s/it]
+Loading checkpoint shards:  20%|██        | 1/5 [00:02<00:09,  2.48s/it]
+Loading checkpoint shards:  40%|████      | 2/5 [00:03<00:04,  1.63s/it]
+Loading checkpoint shards:  40%|████      | 2/5 [00:03<00:04,  1.62s/it]
+Loading checkpoint shards:  40%|████      | 2/5 [00:03<00:04,  1.63s/it]
+Loading checkpoint shards:  40%|████      | 2/5 [00:04<00:06,  2.12s/it]
+Loading checkpoint shards:  60%|██████    | 3/5 [00:04<00:02,  1.47s/it]
+Loading checkpoint shards:  60%|██████    | 3/5 [00:04<00:03,  1.50s/it]
+Loading checkpoint shards:  60%|██████    | 3/5 [00:04<00:03,  1.51s/it]
+Loading checkpoint shards:  60%|██████    | 3/5 [00:06<00:03,  1.97s/it]
+Loading checkpoint shards:  80%|████████  | 4/5 [00:06<00:01,  1.50s/it]
+Loading checkpoint shards:  80%|████████  | 4/5 [00:06<00:01,  1.49s/it]
+Loading checkpoint shards:  80%|████████  | 4/5 [00:06<00:01,  1.50s/it]
+Loading checkpoint shards: 100%|██████████| 5/5 [00:07<00:00,  1.32s/it]
+Loading checkpoint shards: 100%|██████████| 5/5 [00:07<00:00,  1.33s/it]
+Loading checkpoint shards: 100%|██████████| 5/5 [00:07<00:00,  1.42s/it]
+
+Loading checkpoint shards: 100%|██████████| 5/5 [00:07<00:00,  1.43s/it]
+
+Loading checkpoint shards: 100%|██████████| 5/5 [00:07<00:00,  1.32s/it]
+Loading checkpoint shards: 100%|██████████| 5/5 [00:07<00:00,  1.43s/it]
+[rank3]:[W509 12:17:49.013334539 ProcessGroupNCCL.cpp:4561] [PG ID 0 PG GUID 0 Rank 3]  using GPU 3 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect. Specify device_ids in barrier() to force use of a particular device, or call init_process_group() with a device_id.
+[rank2]:[W509 12:17:49.015403741 ProcessGroupNCCL.cpp:4561] [PG ID 0 PG GUID 0 Rank 2]  using GPU 2 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect. Specify device_ids in barrier() to force use of a particular device, or call init_process_group() with a device_id.
+[rank1]:[W509 12:17:49.019704281 ProcessGroupNCCL.cpp:4561] [PG ID 0 PG GUID 0 Rank 1]  using GPU 1 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect. Specify device_ids in barrier() to force use of a particular device, or call init_process_group() with a device_id.
+
+Loading checkpoint shards:  80%|████████  | 4/5 [00:08<00:01,  1.97s/it]
+Loading checkpoint shards: 100%|██████████| 5/5 [00:09<00:00,  1.78s/it]
+Loading checkpoint shards: 100%|██████████| 5/5 [00:09<00:00,  1.91s/it]
+[INFO:swift] model.hf_device_map: {'': device(type='cuda', index=0)}
+[INFO:swift] model_info: ModelInfo(model_type='qwen2_5_omni', model_dir='/data/wzw/egolink_race/model/modelscope_model/Qwen2.5-Omni-7B', torch_dtype=torch.bfloat16, max_model_len=32768, quant_method=None, quant_bits=None, rope_scaling={'mrope_section': [16, 24, 24], 'rope_type': 'default', 'type': 'default'}, is_moe_model=False, is_multimodal=True, config=Qwen2_5OmniConfig {
+  "architectures": [
+    "Qwen2_5OmniModel"
+  ],
+  "dtype": "bfloat16",
+  "enable_audio_output": true,
+  "enable_talker": true,
+  "hidden_size": 3584,
+  "keys_to_ignore_at_inference": [
+    "past_key_values"
+  ],
+  "model_type": "qwen2_5_omni",
+  "talker_config": {
+    "_attn_implementation_autoset": true,
+    "_name_or_path": "Qwen2.5-Omni-7B/talker",
+    "architectures": [
+      "Qwen2OmniTalkerForConditionalGeneration"
+    ],
+    "attention_dropout": 0.0,
+    "audio_end_token_id": 151648,
+    "audio_start_token_id": 151647,
+    "audio_token_index": 151646,
+    "dtype": "bfloat16",
+    "embedding_size": 3584,
+    "head_dim": 128,
+    "hidden_act": "silu",
+    "hidden_size": 896,
+    "image_token_index": 151655,
+    "init_std": 0.02,
+    "initializer_range": 0.02,
+    "intermediate_size": 18944,
+    "layer_types": [
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention",
+      "full_attention"
+    ],
+    "max_position_embeddings": 32768,
+    "max_window_layers": 28,
+    "model_type": "qwen2_5_omni_talker",
+    "num_attention_heads": 12,
+    "num_hidden_layers": 24,
+    "num_key_value_heads": 4,
+    "position_id_per_seconds": 25,
+    "rms_norm_eps": 1e-06,
+    "rope_scaling": {
+      "mrope_section": [
+        16,
+        24,
+        24
+      ],
+      "rope_type": "default",
+      "type": "default"
+    },
+    "rope_theta": 1000000.0,
+    "seconds_per_chunk": 2,
+    "sliding_window": null,
+    "spatial_merge_size": 2,
+    "tts_codec_end_token_id": 8294,
+    "tts_codec_mask_token_id": 8296,
+    "tts_codec_pad_token_id": 8292,
+    "tts_codec_start_token_id": 8293,
+    "tts_text_end_token_id": 151861,
+    "tts_text_pad_token_id": 151859,
+    "tts_text_start_token_id": 151860,
+    "use_cache": true,
+    "use_sliding_window": false,
+    "video_token_index": 151656,
+    "vision_end_token_id": 151653,
+    "vision_start_token_id": 151652,
+    "vocab_size": 8448
+  },
+  "thinker_config": {
+    "_attn_implementation_autoset": true,
+    "_name_or_path": "Qwen2.5-Omni-7B/thinker",
+    "architectures": [
+      "Qwen2OmniNaViTThinkerForConditionalGeneration"
+    ],
+    "audio_config": {
+      "_attn_implementation_autoset": true,
+      "_name_or_path": "",
+      "activation_dropout": 0.0,
+      "activation_function": "gelu",
+      "add_cross_attention": false,
+      "architectures": null,
+      "attention_dropout": 0.0,
+      "bad_words_ids": null,
+      "begin_suppress_tokens": null,
+      "bos_token_id": null,
+      "chunk_size_feed_forward": 0,
+      "cross_attention_hidden_size": null,
+      "d_model": 1280,
+      "decoder_start_token_id": null,
+      "diversity_penalty": 0.0,
+      "do_sample": false,
+      "dropout": 0.0,
+      "dtype": "bfloat16",
+      "early_stopping": false,
+      "encoder_attention_heads": 20,
+      "encoder_ffn_dim": 5120,
+      "encoder_layerdrop": 0.0,
+      "encoder_layers": 32,
+      "encoder_no_repeat_ngram_size": 0,
+      "eos_token_id": null,
+      "exponential_decay_length_penalty": null,
+      "finetuning_task": null,
+      "forced_bos_token_id": null,
+      "forced_eos_token_id": null,
+      "id2label": {
+        "0": "LABEL_0",
+        "1": "LABEL_1"
+      },
+      "init_std": 0.02,
+      "initializer_range": 0.02,
+      "is_decoder": false,
+      "is_encoder_decoder": false,
+      "label2id": {
+        "LABEL_0": 0,
+        "LABEL_1": 1
+      },
+      "length_penalty": 1.0,
+      "max_length": 20,
+      "max_source_positions": 1500,
+      "min_length": 0,
+      "model_type": "qwen2_5_omni_audio_encoder",
+      "n_window": 100,
+      "no_repeat_ngram_size": 0,
+      "num_beam_groups": 1,
+      "num_beams": 1,
+      "num_hidden_layers": 32,
+      "num_mel_bins": 128,
+      "num_return_sequences": 1,
+      "output_attentions": false,
+      "output_dim": 3584,
+      "output_hidden_states": false,
+      "output_scores": false,
+      "pad_token_id": null,
+      "prefix": null,
+      "problem_type": null,
+      "pruned_heads": {},
+      "remove_invalid_values": false,
+      "repetition_penalty": 1.0,
+      "return_dict": true,
+      "return_dict_in_generate": false,
+      "scale_embedding": false,
+      "sep_token_id": null,
+      "suppress_tokens": null,
+      "task_specific_params": null,
+      "temperature": 1.0,
+      "tf_legacy_loss": false,
+      "tie_encoder_decoder": false,
+      "tie_word_embeddings": true,
+      "tokenizer_class": null,
+      "top_k": 50,
+      "top_p": 1.0,
+      "torchscript": false,
+      "typical_p": 1.0,
+      "use_bfloat16": false
+    },
+    "audio_end_token_id": 151648,
+    "audio_start_token_id": 151647,
+    "audio_token_index": 151646,
+    "bos_token_id": 151644,
+    "dtype": "bfloat16",
+    "eos_token_id": 151645,
+    "ignore_index": -100,
+    "image_token_index": 151655,
+    "init_std": 0.02,
+    "initializer_range": 0.02,
+    "model_type": "qwen2_5_omni_thinker",
+    "pad_token_id": 151643,
+    "position_id_per_seconds": 25,
+    "seconds_per_chunk": 2,
+    "text_config": {
+      "_name_or_path": "",
+      "add_cross_attention": false,
+      "architectures": null,
+      "attention_dropout": 0.0,
+      "bad_words_ids": null,
+      "begin_suppress_tokens": null,
+      "bos_token_id": null,
+      "chunk_size_feed_forward": 0,
+      "cross_attention_hidden_size": null,
+      "decoder_start_token_id": null,
+      "diversity_penalty": 0.0,
+      "do_sample": false,
+      "dtype": "bfloat16",
+      "early_stopping": false,
+      "encoder_no_repeat_ngram_size": 0,
+      "eos_token_id": null,
+      "exponential_decay_length_penalty": null,
+      "finetuning_task": null,
+      "forced_bos_token_id": null,
+      "forced_eos_token_id": null,
+      "hidden_act": "silu",
+      "hidden_size": 3584,
+      "id2label": {
+        "0": "LABEL_0",
+        "1": "LABEL_1"
+      },
+      "init_std": 0.02,
+      "initializer_range": 0.02,
+      "intermediate_size": 18944,
+      "is_decoder": false,
+      "is_encoder_decoder": false,
+      "label2id": {
+        "LABEL_0": 0,
+        "LABEL_1": 1
+      },
+      "layer_types": [
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention"
+      ],
+      "length_penalty": 1.0,
+      "max_length": 20,
+      "max_position_embeddings": 32768,
+      "max_window_layers": 28,
+      "min_length": 0,
+      "model_type": "qwen2_5_omni_text",
+      "no_repeat_ngram_size": 0,
+      "num_attention_heads": 28,
+      "num_beam_groups": 1,
+      "num_beams": 1,
+      "num_hidden_layers": 28,
+      "num_key_value_heads": 4,
+      "num_return_sequences": 1,
+      "output_attentions": false,
+      "output_hidden_states": false,
+      "output_scores": false,
+      "pad_token_id": null,
+      "prefix": null,
+      "problem_type": null,
+      "pruned_heads": {},
+      "remove_invalid_values": false,
+      "repetition_penalty": 1.0,
+      "return_dict": true,
+      "return_dict_in_generate": false,
+      "rms_norm_eps": 1e-06,
+      "rope_scaling": {
+        "mrope_section": [
+          16,
+          24,
+          24
+        ],
+        "rope_type": "default",
+        "type": "default"
+      },
+      "rope_theta": 1000000.0,
+      "sep_token_id": null,
+      "sliding_window": null,
+      "suppress_tokens": null,
+      "task_specific_params": null,
+      "temperature": 1.0,
+      "tf_legacy_loss": false,
+      "tie_encoder_decoder": false,
+      "tie_word_embeddings": false,
+      "tokenizer_class": null,
+      "top_k": 50,
+      "top_p": 1.0,
+      "torchscript": false,
+      "typical_p": 1.0,
+      "use_bfloat16": false,
+      "use_cache": true,
+      "use_sliding_window": false,
+      "vocab_size": 152064
+    },
+    "user_token_id": 872,
+    "video_token_index": 151656,
+    "vision_config": {
+      "_attn_implementation_autoset": true,
+      "_name_or_path": "",
+      "add_cross_attention": false,
+      "architectures": null,
+      "bad_words_ids": null,
+      "begin_suppress_tokens": null,
+      "bos_token_id": null,
+      "chunk_size_feed_forward": 0,
+      "cross_attention_hidden_size": null,
+      "decoder_start_token_id": null,
+      "depth": 32,
+      "diversity_penalty": 0.0,
+      "do_sample": false,
+      "dtype": "bfloat16",
+      "early_stopping": false,
+      "embed_dim": 1280,
+      "encoder_no_repeat_ngram_size": 0,
+      "eos_token_id": null,
+      "exponential_decay_length_penalty": null,
+      "finetuning_task": null,
+      "forced_bos_token_id": null,
+      "forced_eos_token_id": null,
+      "fullatt_block_indexes": [
+        7,
+        15,
+        23,
+        31
+      ],
+      "hidden_act": "silu",
+      "hidden_size": 1280,
+      "id2label": {
+        "0": "LABEL_0",
+        "1": "LABEL_1"
+      },
+      "in_channels": 3,
+      "in_chans": 3,
+      "init_std": 0.02,
+      "initializer_range": 0.02,
+      "intermediate_size": 3420,
+      "is_decoder": false,
+      "is_encoder_decoder": false,
+      "label2id": {
+        "LABEL_0": 0,
+        "LABEL_1": 1
+      },
+      "length_penalty": 1.0,
+      "max_length": 20,
+      "min_length": 0,
+      "model_type": "qwen2_5_omni_vision_encoder",
+      "no_repeat_ngram_size": 0,
+      "num_beam_groups": 1,
+      "num_beams": 1,
+      "num_heads": 16,
+      "num_return_sequences": 1,
+      "out_hidden_size": 3584,
+      "output_attentions": false,
+      "output_hidden_states": false,
+      "output_scores": false,
+      "pad_token_id": null,
+      "patch_size": 14,
+      "prefix": null,
+      "problem_type": null,
+      "pruned_heads": {},
+      "remove_invalid_values": false,
+      "repetition_penalty": 1.0,
+      "return_dict": true,
+      "return_dict_in_generate": false,
+      "sep_token_id": null,
+      "spatial_merge_size": 2,
+      "spatial_patch_size": 14,
+      "suppress_tokens": null,
+      "task_specific_params": null,
+      "temperature": 1.0,
+      "temporal_patch_size": 2,
+      "tf_legacy_loss": false,
+      "tie_encoder_decoder": false,
+      "tie_word_embeddings": true,
+      "tokenizer_class": null,
+      "tokens_per_second": 25,
+      "top_k": 50,
+      "top_p": 1.0,
+      "torchscript": false,
+      "typical_p": 1.0,
+      "use_bfloat16": false,
+      "window_size": 112
+    },
+    "vision_end_token_id": 151653,
+    "vision_start_token_id": 151652,
+    "vision_token_id": 151654
+  },
+  "token2wav_config": {
+    "_attn_implementation_autoset": true,
+    "bigvgan_config": {
+      "_attn_implementation_autoset": true,
+      "_name_or_path": "",
+      "add_cross_attention": false,
+      "architectures": null,
+      "bad_words_ids": null,
+      "begin_suppress_tokens": null,
+      "bos_token_id": null,
+      "chunk_size_feed_forward": 0,
+      "cross_attention_hidden_size": null,
+      "decoder_start_token_id": null,
+      "diversity_penalty": 0.0,
+      "do_sample": false,
+      "dtype": null,
+      "early_stopping": false,
+      "encoder_no_repeat_ngram_size": 0,
+      "eos_token_id": null,
+      "exponential_decay_length_penalty": null,
+      "finetuning_task": null,
+      "forced_bos_token_id": null,
+      "forced_eos_token_id": null,
+      "id2label": {
+        "0": "LABEL_0",
+        "1": "LABEL_1"
+      },
+      "is_decoder": false,
+      "is_encoder_decoder": false,
+      "label2id": {
+        "LABEL_0": 0,
+        "LABEL_1": 1
+      },
+      "length_penalty": 1.0,
+      "max_length": 20,
+      "mel_dim": 80,
+      "min_length": 0,
+      "model_type": "qwen2_5_omni_bigvgan",
+      "no_repeat_ngram_size": 0,
+      "num_beam_groups": 1,
+      "num_beams": 1,
+      "num_return_sequences": 1,
+      "output_attentions": false,
+      "output_hidden_states": false,
+      "output_scores": false,
+      "pad_token_id": null,
+      "prefix": null,
+      "problem_type": null,
+      "pruned_heads": {},
+      "remove_invalid_values": false,
+      "repetition_penalty": 1.0,
+      "resblock_dilation_sizes": [
+        [
+          1,
+          3,
+          5
+        ],
+        [
+          1,
+          3,
+          5
+        ],
+        [
+          1,
+          3,
+          5
+        ]
+      ],
+      "resblock_kernel_sizes": [
+        3,
+        7,
+        11
+      ],
+      "return_dict": true,
+      "return_dict_in_generate": false,
+      "sep_token_id": null,
+      "suppress_tokens": null,
+      "task_specific_params": null,
+      "temperature": 1.0,
+      "tf_legacy_loss": false,
+      "tie_encoder_decoder": false,
+      "tie_word_embeddings": true,
+      "tokenizer_class": null,
+      "top_k": 50,
+      "top_p": 1.0,
+      "torchscript": false,
+      "typical_p": 1.0,
+      "upsample_initial_channel": 1536,
+      "upsample_kernel_sizes": [
+        11,
+        7,
+        4,
+        4,
+        4,
+        4
+      ],
+      "upsample_rates": [
+        5,
+        3,
+        2,
+        2,
+        2,
+        2
+      ],
+      "use_bfloat16": false,
+      "use_bias_at_final": false
+    },
+    "dit_config": {
+      "_attn_implementation_autoset": true,
+      "_name_or_path": "",
+      "add_cross_attention": false,
+      "architectures": null,
+      "bad_words_ids": null,
+      "begin_suppress_tokens": null,
+      "block_size": 24,
+      "bos_token_id": null,
+      "chunk_size_feed_forward": 0,
+      "cross_attention_hidden_size": null,
+      "decoder_start_token_id": null,
+      "depth": 22,
+      "dim": 1024,
+      "diversity_penalty": 0.0,
+      "do_sample": false,
+      "dropout": 0.1,
+      "dtype": "float32",
+      "early_stopping": false,
+      "emb_dim": 512,
+      "enc_attention_channels": 64,
+      "enc_channels": [
+        256,
+        256,
+        256,
+        256,
+        768
+      ],
+      "enc_dilations": [
+        1,
+        2,
+        3,
+        4,
+        1
+      ],
+      "enc_dim": 128,
+      "enc_emb_dim": 192,
+      "enc_global_context": true,
+      "enc_kernel_sizes": [
+        5,
+        3,
+        3,
+        3,
+        1
+      ],
+      "enc_lin_neurons": 192,
+      "enc_res2net_scale": 2,
+      "enc_se_channels": 64,
+      "encoder_no_repeat_ngram_size": 0,
+      "eos_token_id": null,
+      "exponential_decay_length_penalty": null,
+      "ff_mult": 2,
+      "finetuning_task": null,
+      "forced_bos_token_id": null,
+      "forced_eos_token_id": null,
+      "head_dim": 64,
+      "heads": 16,
+      "hidden_size": 1024,
+      "id2label": {
+        "0": "LABEL_0",
+        "1": "LABEL_1"
+      },
+      "is_decoder": false,
+      "is_encoder_decoder": false,
+      "label2id": {
+        "LABEL_0": 0,
+        "LABEL_1": 1
+      },
+      "length_penalty": 1.0,
+      "look_ahead_layers": [
+        10
+      ],
+      "look_backward_layers": [
+        0,
+        20
+      ],
+      "max_length": 20,
+      "max_position_embeddings": 32768,
+      "mel_dim": 80,
+      "min_length": 0,
+      "model_type": "qwen2_5_omni_dit",
+      "no_repeat_ngram_size": 0,
+      "num_attention_heads": 16,
+      "num_beam_groups": 1,
+      "num_beams": 1,
+      "num_embeds": 8193,
+      "num_hidden_layers": 22,
+      "num_return_sequences": 1,
+      "output_attentions": false,
+      "output_hidden_states": false,
+      "output_scores": false,
+      "pad_token_id": null,
+      "prefix": null,
+      "problem_type": null,
+      "pruned_heads": {},
+      "remove_invalid_values": false,
+      "repeats": 2,
+      "repetition_penalty": 1.0,
+      "return_dict": true,
+      "return_dict_in_generate": false,
+      "rope_theta": 10000.0,
+      "sep_token_id": null,
+      "suppress_tokens": null,
+      "task_specific_params": null,
+      "temperature": 1.0,
+      "tf_legacy_loss": false,
+      "tie_encoder_decoder": false,
+      "tie_word_embeddings": true,
+      "tokenizer_class": null,
+      "top_k": 50,
+      "top_p": 1.0,
+      "torchscript": false,
+      "typical_p": 1.0,
+      "use_bfloat16": false
+    },
+    "model_type": "qwen2_5_omni_token2wav"
+  },
+  "transformers_version": "4.57.6"
+}
+, task_type='causal_lm', num_labels=None)
+[INFO:swift] model.generation_config: GenerationConfig {
+  "eos_token_id": 151645,
+  "max_new_tokens": 64,
+  "pad_token_id": 151643
+}
+
+[INFO:swift] default_system: 'You are a helpful assistant.'
+[INFO:swift] max_length: 2048
+[INFO:swift] response_prefix: ''
+[INFO:swift] agent_template: hermes
+[INFO:swift] norm_bbox: none
+[INFO:swift] Setting ROOT_IMAGE_DIR: None. You can adjust this hyperparameter through the environment variable: `ROOT_IMAGE_DIR`.
+[INFO:swift] Setting QWENVL_BBOX_FORMAT: legacy. You can adjust this hyperparameter through the environment variable: `QWENVL_BBOX_FORMAT`.
+[INFO:swift] Setting use_audio_in_video: False. You can adjust this hyperparameter through the environment variable: `USE_AUDIO_IN_VIDEO`.
+[INFO:swift] Setting sampling_rate: 16000. You can adjust this hyperparameter through the environment variable: `SAMPLING_RATE`.
+[INFO:swift] Start time of running main: 2026-05-09 12:17:51.621015
+[INFO:swift] swift.__version__: 4.2.0
+
+Generating train split: 0 examples [00:00, ? examples/s]
+Generating train split: 3974 examples [00:00, 76928.80 examples/s]
+[rank0]:[W509 12:17:52.723252964 ProcessGroupNCCL.cpp:4561] [PG ID 0 PG GUID 0 Rank 0]  using GPU 0 to perform barrier as devices used by this process are currently unknown. This can potentially cause a hang if this rank to GPU mapping is incorrect. Specify device_ids in barrier() to force use of a particular device, or call init_process_group() with a device_id.
+
+Map (num_proc=1):   0%|          | 0/3974 [00:00<?, ? examples/s]
+Map (num_proc=1):  25%|██▌       | 1000/3974 [00:00<00:00, 5379.57 examples/s]
+Map (num_proc=1):  75%|███████▌  | 3000/3974 [00:00<00:00, 10296.62 examples/s]
+Map (num_proc=1): 100%|██████████| 3974/3974 [00:00<00:00, 7815.40 examples/s] 
+
+Generating train split: 0 examples [00:00, ? examples/s]
+Generating train split: 400 examples [00:00, 35729.65 examples/s]
+
+Map (num_proc=1):   0%|          | 0/400 [00:00<?, ? examples/s]
+Map (num_proc=1): 100%|██████████| 400/400 [00:00<00:00, 2976.89 examples/s]
+Map (num_proc=1): 100%|██████████| 400/400 [00:00<00:00, 1530.45 examples/s]
+[INFO:swift] train_dataset: Dataset({
+    features: ['messages', 'videos', 'audios'],
+    num_rows: 3974
+})
+[INFO:swift] val_dataset: Dataset({
+    features: ['messages', 'videos', 'audios'],
+    num_rows: 400
+})
+qwen-vl-utils using decord to read video.
+qwen-vl-utils using decord to read video.qwen-vl-utils using decord to read video.
+
+qwen-vl-utils using decord to read video.
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/cli/sft.py", line 20, in <module>
+[rank1]:     sft_main()
+[rank1]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 353, in sft_main
+[rank1]:     return SwiftSft(args).main()
+[rank1]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/base.py", line 52, in main
+[rank1]:     result = self.run()
+[rank1]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/ray/base.py", line 168, in wrapper
+[rank1]:     return func(self, *args, **kwargs)
+[rank1]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 174, in run
+[rank1]:     train_dataset, val_dataset = self._prepare_dataset()
+[rank1]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/ray/base.py", line 168, in wrapper
+[rank1]:     return func(self, *args, **kwargs)
+[rank1]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 135, in _prepare_dataset
+[rank1]:     self._show_dataset(*datasets)
+[rank1]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 302, in _show_dataset
+[rank1]:     inputs = train_dataset[0]
+[rank1]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/dataset/utils.py", line 108, in __getitem__
+[rank1]:     raise ValueError('Failed to retrieve the dataset. You can avoid this issue by increasing `max_length` or '
+[rank1]: ValueError: Failed to retrieve the dataset. You can avoid this issue by increasing `max_length` or modifying the `truncation_strategy`.
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/cli/sft.py", line 20, in <module>
+[rank3]:     sft_main()
+[rank3]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 353, in sft_main
+[rank3]:     return SwiftSft(args).main()
+[rank3]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/base.py", line 52, in main
+[rank3]:     result = self.run()
+[rank3]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/ray/base.py", line 168, in wrapper
+[rank3]:     return func(self, *args, **kwargs)
+[rank3]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 174, in run
+[rank3]:     train_dataset, val_dataset = self._prepare_dataset()
+[rank3]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/ray/base.py", line 168, in wrapper
+[rank3]:     return func(self, *args, **kwargs)
+[rank3]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 135, in _prepare_dataset
+[rank3]:     self._show_dataset(*datasets)
+[rank3]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 302, in _show_dataset
+[rank3]:     inputs = train_dataset[0]
+[rank3]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/dataset/utils.py", line 108, in __getitem__
+[rank3]:     raise ValueError('Failed to retrieve the dataset. You can avoid this issue by increasing `max_length` or '
+[rank3]: ValueError: Failed to retrieve the dataset. You can avoid this issue by increasing `max_length` or modifying the `truncation_strategy`.
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/cli/sft.py", line 20, in <module>
+[rank0]:     sft_main()
+[rank0]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 353, in sft_main
+[rank0]:     return SwiftSft(args).main()
+[rank0]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/base.py", line 52, in main
+[rank0]:     result = self.run()
+[rank0]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/ray/base.py", line 168, in wrapper
+[rank0]:     return func(self, *args, **kwargs)
+[rank0]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 174, in run
+[rank0]:     train_dataset, val_dataset = self._prepare_dataset()
+[rank0]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/ray/base.py", line 168, in wrapper
+[rank0]:     return func(self, *args, **kwargs)
+[rank0]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 135, in _prepare_dataset
+[rank0]:     self._show_dataset(*datasets)
+[rank0]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 296, in _show_dataset
+[rank0]:     inputs = train_dataset[0] if hasattr(train_dataset, '__len__') else next(iter(train_dataset))
+[rank0]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/dataset/utils.py", line 108, in __getitem__
+[rank0]:     raise ValueError('Failed to retrieve the dataset. You can avoid this issue by increasing `max_length` or '
+[rank0]: ValueError: Failed to retrieve the dataset. You can avoid this issue by increasing `max_length` or modifying the `truncation_strategy`.
+[rank2]: Traceback (most recent call last):
+[rank2]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/cli/sft.py", line 20, in <module>
+[rank2]:     sft_main()
+[rank2]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 353, in sft_main
+[rank2]:     return SwiftSft(args).main()
+[rank2]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/base.py", line 52, in main
+[rank2]:     result = self.run()
+[rank2]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/ray/base.py", line 168, in wrapper
+[rank2]:     return func(self, *args, **kwargs)
+[rank2]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 174, in run
+[rank2]:     train_dataset, val_dataset = self._prepare_dataset()
+[rank2]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/ray/base.py", line 168, in wrapper
+[rank2]:     return func(self, *args, **kwargs)
+[rank2]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 135, in _prepare_dataset
+[rank2]:     self._show_dataset(*datasets)
+[rank2]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/pipelines/train/sft.py", line 302, in _show_dataset
+[rank2]:     inputs = train_dataset[0]
+[rank2]:   File "/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/dataset/utils.py", line 108, in __getitem__
+[rank2]:     raise ValueError('Failed to retrieve the dataset. You can avoid this issue by increasing `max_length` or '
+[rank2]: ValueError: Failed to retrieve the dataset. You can avoid this issue by increasing `max_length` or modifying the `truncation_strategy`.
+[rank0]:[W509 12:19:28.402851053 ProcessGroupNCCL.cpp:1496] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+W0509 12:19:29.572000 2455357 site-packages/torch/distributed/elastic/multiprocessing/api.py:897] Sending process 2455446 closing signal SIGTERM
+W0509 12:19:29.573000 2455357 site-packages/torch/distributed/elastic/multiprocessing/api.py:897] Sending process 2455448 closing signal SIGTERM
+W0509 12:19:29.573000 2455357 site-packages/torch/distributed/elastic/multiprocessing/api.py:897] Sending process 2455449 closing signal SIGTERM
+E0509 12:19:30.253000 2455357 site-packages/torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 1 (pid: 2455447) of binary: /opt/conda/envs/egolink/bin/python3.10
+Traceback (most recent call last):
+  File "/opt/conda/envs/egolink/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/opt/conda/envs/egolink/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/run.py", line 922, in <module>
+    main()
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/run.py", line 918, in main
+    run(args)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/run.py", line 909, in run
+    elastic_launch(
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+/opt/conda/envs/egolink/lib/python3.10/site-packages/swift/cli/sft.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-05-09_12:19:29
+  host      : f63809a56a75
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 2455447)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

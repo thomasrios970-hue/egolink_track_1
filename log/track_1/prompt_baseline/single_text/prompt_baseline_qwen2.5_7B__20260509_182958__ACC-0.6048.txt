@@ -1,0 +1,9 @@
+time: 2026-05-09 18:29:58 Beijing Time
+model: Qwen2.5-Omni-7B
+mode: text
+overall_accuracy: 0.6048 (225/372)
+emotion_accuracy: 0.3700 (37/100)
+reason_accuracy: 0.7500 (75/100)
+predict_accuracy: 0.5904 (49/83)
+ego_summary_accuracy: 0.7191 (64/89)
+skipped: 0

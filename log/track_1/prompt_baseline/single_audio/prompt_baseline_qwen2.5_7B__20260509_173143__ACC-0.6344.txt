@@ -1,0 +1,9 @@
+time: 2026-05-09 17:31:43 Beijing Time
+model: Qwen2.5-Omni-7B
+mode: audio
+overall_accuracy: 0.6344 (236/372)
+emotion_accuracy: 0.4400 (44/100)
+reason_accuracy: 0.6900 (69/100)
+predict_accuracy: 0.6867 (57/83)
+ego_summary_accuracy: 0.7416 (66/89)
+skipped: 0

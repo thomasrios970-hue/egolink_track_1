@@ -1,20 +1,20 @@
 """
 脚本作用：
-使用 EgoLink / E3 的 train 标注、本地 Qwen2.5-Omni、视频、音频和字幕生成 MCQ 训练集草稿。
+使用 EgoLink / E3 的 val 标注、本地 Qwen2.5-Omni、视频、音频和字幕生成 MCQ 验证集草稿。
 
 执行逻辑：
-1. 从 data/annotation/data2.xlsx 读取标注；正式批量只使用 set=train 的样本。
+1. 从 data/annotation/data2.xlsx 读取标注；正式批量只使用 set=val 的样本。
 2. emotion 和 reason 只根据标注字段生成，正确答案强制来自标注。
 3. predict 使用当前视频、当前音频、当前字幕，以及之后最多 3 个子视频的视频、音频和字幕作为辅助线索。
 4. ego_summary 使用当前视频、当前音频、当前字幕，以及之前最多 3 个子视频的视频、音频和字幕作为辅助线索。
-5. 正式批量时输出到 question/train_question；如需小样本调试，可临时改顶部 TEST_VID/TEST_SUB_ID 和 output_dir。
+5. 正式批量时输出到 question/val_question；如需小样本调试，可临时改顶部 TEST_VID/TEST_SUB_ID 和 output_dir。
 6. 输出三个 jsonl 和一个 csv：questions、answer_key、review jsonl、review csv。
 
 运行示例：
-python code/track_1/produce_question_train.py \
-  --num_per_type 1000 \
-  --seed 42 \
-  --gpu 2,3,4,5,
+python code/track_1/produce_question/produce_question_val.py \
+  --num_per_type 100 \
+  --seed 1757 \
+  --gpu 4,5,6,7
 """
 
 """需要的库统一在这里导入"""
@@ -31,7 +31,7 @@ from pathlib import Path
 
 import pandas as pd
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import config
 
 """所有输入输出路径都从 config 已有路径拼接出来"""
@@ -40,12 +40,12 @@ video_dir = Path(config.PATH_TO_DATA_DIR) / "E3" / "E3"
 audio_dir = Path(config.PATH_TO_DATA_DIR) / "audio"
 data_path = Path(config.PATH_TO_DATA_DIR) / "annotation" / "data2.xlsx"
 model_path = Path(config.PATH_TO_MODEL_DIR) / "modelscope_model" / "Qwen2.5-Omni-7B"
-output_dir = Path(config.PATH_TO_QUESTION_DIR) / "train_question"
+output_dir = Path(config.PATH_TO_QUESTION_DIR) / "val_question"
 
-QUESTIONS_PATH = output_dir / "local_train_questions.jsonl"
-ANSWER_KEY_PATH = output_dir / "local_train_answer_key.jsonl"
-REVIEW_PATH = output_dir / "local_train_review.jsonl"
-REVIEW_CSV_PATH = output_dir / "local_train_review.csv"
+QUESTIONS_PATH = output_dir / "local_val_questions.jsonl"
+ANSWER_KEY_PATH = output_dir / "local_val_answer_key.jsonl"
+REVIEW_PATH = output_dir / "local_val_review.jsonl"
+REVIEW_CSV_PATH = output_dir / "local_val_review.csv"
 
 TEST_VID = None
 TEST_SUB_ID = None
@@ -370,7 +370,7 @@ if missing:
 
 samples, skipped = [], 0
 for _, row in df.iterrows():
-    if TEST_VID is None and str(row["set"]).strip() != "train":
+    if TEST_VID is None and str(row["set"]).strip() != "val":
         continue
     if any(pd.isna(row[col]) or str(row[col]).strip() == "" for col in ["person", "emotion", "reason", "start_time", "end_time"]):
         skipped += 1
@@ -476,7 +476,7 @@ for question_type in QUESTION_TYPES:
             "subtitle_text": subtitle_text,
             "audio_transcript": "",
         }
-        append_jsonl(QUESTIONS_PATH, question_row)  # 输入：questions 路径和训练题行；输出：追加写入 questions。
+        append_jsonl(QUESTIONS_PATH, question_row)  # 输入：questions 路径和验证题行；输出：追加写入 questions。
         append_jsonl(ANSWER_KEY_PATH, answer_row)  # 输入：answer_key 路径和答案行；输出：追加写入 answer_key。
         append_jsonl(REVIEW_PATH, review_row)  # 输入：review 路径和复查行；输出：追加写入 review jsonl。
         append_csv(REVIEW_CSV_PATH, review_row)  # 输入：review_csv 路径和复查行；输出：追加写入 review csv。
@@ -551,7 +551,7 @@ for question_type in QUESTION_TYPES:
                 "subtitle_text": subtitle_text,
                 "audio_transcript": "",
             }
-            append_jsonl(QUESTIONS_PATH, question_row)  # 输入：questions 路径和训练题行；输出：追加写入 questions。
+            append_jsonl(QUESTIONS_PATH, question_row)  # 输入：questions 路径和验证题行；输出：追加写入 questions。
             append_jsonl(ANSWER_KEY_PATH, answer_row)  # 输入：answer_key 路径和答案行；输出：追加写入 answer_key。
             append_jsonl(REVIEW_PATH, review_row)  # 输入：review 路径和复查行；输出：追加写入 review jsonl。
             append_csv(REVIEW_CSV_PATH, review_row)  # 输入：review_csv 路径和复查行；输出：追加写入 review csv。

@@ -31,7 +31,7 @@ from urllib import request
 import pandas as pd
 import whisper
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 import config
 

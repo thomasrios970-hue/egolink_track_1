@@ -24,7 +24,7 @@ import sys
 import warnings
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import config
 
 """参数解析器统一在这里设置，参数尽量少"""
