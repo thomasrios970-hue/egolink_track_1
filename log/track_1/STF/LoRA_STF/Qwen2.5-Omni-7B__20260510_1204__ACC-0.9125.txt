@@ -1,0 +1,60 @@
+time: 2026-05-10 12:04 Beijing Time
+model: Qwen2.5-Omni-7B
+model_path: /data/wzw/egolink_race/model/modelscope_model/Qwen2.5-Omni-7B
+train_path: /data/wzw/egolink_race/data/question/train_question_SFT/local_train_sft.jsonl
+val_path: /data/wzw/egolink_race/data/question/val_question_SFT/local_val_sft.jsonl
+test_path: /data/wzw/egolink_race/data/question/test_question_SFT/local_test_sft.jsonl
+filtered_train_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260510_1204__ACC-0.9125_train_filtered.jsonl
+filtered_val_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260510_1204__ACC-0.9125_val_filtered.jsonl
+infer_val_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260510_1204__ACC-0.9125_val_infer.jsonl
+filtered_test_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260510_1204__ACC-0.9125_test_filtered.jsonl
+infer_test_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260510_1204__ACC-0.9125_test_infer.jsonl
+filtered_train_count: 3974
+filtered_train_skipped: 26
+filtered_val_count: 400
+filtered_val_skipped: 0
+filtered_test_count: 372
+filtered_test_skipped: 0
+gpu_arg: 2,3,4,5
+train_gpu: 2,3,4,5
+infer_gpu: 2,3,4,5
+checkpoint_dir: checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260510_1204__ACC-0.9125
+selected_checkpoint: checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260510_1204__ACC-pending/checkpoint-125
+val_prediction_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260510_1204__ACC-0.9125_predictions.jsonl
+test_prediction_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260510_1204__ACC-0.9125_test_predictions.jsonl
+
+LoRA parameters:
+tuner_type: lora
+lora_rank: 8
+lora_alpha: 32
+target_modules: all-linear
+learning_rate: 1e-4
+num_train_epochs: 1
+max_steps: 0
+max_length: 2048
+gradient_accumulation_steps: 8
+dataloader_num_workers: 0
+video_fps: 0.2
+fps_max_frames: 8
+video_max_pixels: 200704
+swift_compat_patch: log/track_1/STF/LoRA_STF/swift_compat/sitecustomize.py
+save_steps: 200
+eval_steps: 200
+logging_steps: 5
+save_total_limit: 2
+
+Validation Accuracy:
+emotion_accuracy: 0.8900 (89/100)
+reason_accuracy: 1.0000 (100/100)
+predict_accuracy: 0.8400 (84/100)
+ego_summary_accuracy: 0.9200 (92/100)
+overall_accuracy: 0.9125 (365/400)
+unparsed_predictions: 0
+
+Test Accuracy:
+emotion_accuracy: 0.5700 (57/100)
+reason_accuracy: 0.9100 (91/100)
+predict_accuracy: 0.8313 (69/83)
+ego_summary_accuracy: 0.9663 (86/89)
+overall_accuracy: 0.8145 (303/372)
+unparsed_predictions: 0

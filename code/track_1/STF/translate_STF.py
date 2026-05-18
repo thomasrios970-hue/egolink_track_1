@@ -1,15 +1,15 @@
 """
 脚本作用：
-将已经生成好的 train_question 和 val_question 转成 ms-swift 多模态 SFT 对话格式。
+将已经生成好的 train_question、val_question 和 test_question 转成 ms-swift 多模态 SFT 对话格式。
 
 执行逻辑：
-1. 读取 data/question/train_question 和 data/question/val_question 中的 questions 与 answer_key。
+1. 读取 data/question/train_question、data/question/val_question 和 data/question/test_question 中的 questions 与 answer_key。
 2. 将每道 MCQ 转成 ms-swift 标准 messages 对话格式：system + user + assistant。
 3. user 中使用 <video><audio> 作为多模态占位，顶层 videos/audios 保存真实路径；assistant 只输出正确答案字母。
-4. 分别导出到 data/question/train_question_SFT 和 data/question/val_question_SFT。
+4. 分别导出到 data/question/train_question_SFT、data/question/val_question_SFT 和 data/question/test_question_SFT。
 
 运行示例：
-python code/track_1/translate_STF.py
+python code/track_1/STF/translate_STF.py --split all
 """
 
 """需要的库统一在这里导入"""
@@ -18,13 +18,14 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 import config
 
 """所有输入输出路径都从 config 已有路径拼接出来"""
 question_root = Path(config.PATH_TO_QUESTION_DIR)
 video_dir = Path(config.PATH_TO_DATA_DIR) / "E3" / "E3"
 audio_dir = Path(config.PATH_TO_DATA_DIR) / "audio"
+subtitle_dir = Path(config.PATH_TO_DATA_DIR) / "subtext"
 
 DATASETS = {
     "train": {
@@ -41,11 +42,18 @@ DATASETS = {
         "answer_name": "local_val_answer_key.jsonl",
         "output_name": "local_val_sft.jsonl",
     },
+    "test": {
+        "input_dir": question_root / "test_question",
+        "output_dir": question_root / "test_question_SFT",
+        "questions_name": "local_test_questions.jsonl",
+        "answer_name": "local_test_answer_key.jsonl",
+        "output_name": "local_test_sft.jsonl",
+    },
 }
 
 """参数解析器统一在这里设置，参数尽量少"""
 parser = argparse.ArgumentParser()
-parser.add_argument("--split", choices=["train", "val", "all"], default="all", help="要转换的数据划分")
+parser.add_argument("--split", choices=["train", "val", "test", "all"], default="all", help="要转换的数据划分")
 args = parser.parse_args()
 
 
@@ -62,16 +70,33 @@ def write_jsonl(path: Path, rows: list):
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
-"""构建用户问题文本，输入：题目字典 -> 输出：SFT user 文本"""
-def build_user_content(question: dict) -> str:
+"""读取 vtt 字幕文本，输入：Vid、sub_id -> 输出：去掉时间戳后的字幕文本 str"""
+def read_subtitle_text(Vid, sub_id) -> str:
+    subtitle_path = subtitle_dir / str(Vid) / f"{sub_id}.vtt"
+    if not subtitle_path.exists():
+        return ""
+    lines = []
+    for line in subtitle_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = line.strip()
+        if not line or line == "WEBVTT" or "-->" in line or line.isdigit():
+            continue
+        lines.append(line)
+    return " ".join(" ".join(lines).split())
+
+
+"""构建用户问题文本，输入：题目字典、字幕文本 -> 输出：SFT user 文本"""
+def build_user_content(question: dict, subtitle_text: str) -> str:
     options = question.get("options", {})
     option_text = "\n".join(f"{letter}. {options.get(letter, '')}" for letter in ["A", "B", "C", "D"])
     return f"""
 <video><audio>
-Please answer the multiple-choice question based on the given video and audio.
+Please answer the multiple-choice question based on the given video, audio, and subtitle.
 Return only one option letter: A, B, C, or D.
 
 Target segment: {question["start_time"]}s to {question["end_time"]}s
+
+Subtitle:
+{subtitle_text}
 
 Question:
 {question["question"]}
@@ -93,6 +118,7 @@ def convert_split(split: str, info: dict) -> int:
             continue
         video_path = video_dir / str(question["Vid"]) / f"{question['sub_id']}.mp4"
         audio_path = audio_dir / str(question["Vid"]) / f"{question['sub_id']}.wav"
+        subtitle_text = read_subtitle_text(question["Vid"], question["sub_id"])  # 输入：Vid、sub_id；输出：字幕文本。
         sft_rows.append({
             "id": qid,
             "qid": qid,
@@ -108,7 +134,7 @@ def convert_split(split: str, info: dict) -> int:
             "audios": [str(audio_path)],
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant for multimodal multiple-choice question answering."},
-                {"role": "user", "content": build_user_content(question)},
+                {"role": "user", "content": build_user_content(question, subtitle_text)},  # 输入：题目和字幕；输出：user 文本。
                 {"role": "assistant", "content": answer},
             ],
         })
@@ -116,8 +142,8 @@ def convert_split(split: str, info: dict) -> int:
     return len(sft_rows)
 
 
-"""代码块部分：转换 train/val 并打印必要信息"""
-splits = ["train", "val"] if args.split == "all" else [args.split]
+"""代码块部分：转换 train/val/test 并打印必要信息"""
+splits = ["train", "val", "test"] if args.split == "all" else [args.split]
 for split in splits:
     count = convert_split(split, DATASETS[split])  # 输入：划分名和路径配置；输出：转换条数。
     print(f"{split}_sft_count: {count}", flush=True)

@@ -1,0 +1,46 @@
+time: 2026-05-09 21:28 Beijing Time
+model: Qwen2.5-Omni-7B
+model_path: /data/wzw/egolink_race/model/modelscope_model/Qwen2.5-Omni-7B
+train_path: /data/wzw/egolink_race/data/question/train_question_SFT/local_train_sft.jsonl
+val_path: /data/wzw/egolink_race/data/question/val_question_SFT/local_val_sft.jsonl
+filtered_train_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2128__ACC-0.7900_train_filtered.jsonl
+filtered_val_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2128__ACC-0.7900_val_filtered.jsonl
+infer_val_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2128__ACC-0.7900_val_infer.jsonl
+filtered_train_count: 3974
+filtered_train_skipped: 26
+filtered_val_count: 400
+filtered_val_skipped: 0
+gpu_arg: 2,3,4,5
+train_gpu: 2,3,4,5
+infer_gpu: 2,3,4,5
+checkpoint_dir: checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2128__ACC-0.7900
+selected_checkpoint: checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2128__ACC-pending/checkpoint-5
+prediction_path: log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2128__ACC-0.7900_predictions.jsonl
+
+LoRA parameters:
+tuner_type: lora
+lora_rank: 8
+lora_alpha: 32
+target_modules: all-linear
+learning_rate: 1e-4
+num_train_epochs: 1
+max_steps: 5
+max_length: 2048
+gradient_accumulation_steps: 8
+dataloader_num_workers: 0
+video_fps: 0.2
+fps_max_frames: 8
+video_max_pixels: 200704
+swift_compat_patch: log/track_1/STF/LoRA_STF/swift_compat/sitecustomize.py
+save_steps: 5
+eval_steps: 5
+logging_steps: 5
+save_total_limit: 2
+
+Accuracy:
+emotion_accuracy: 0.7500 (75/100)
+reason_accuracy: 0.9700 (97/100)
+predict_accuracy: 0.5700 (57/100)
+ego_summary_accuracy: 0.8700 (87/100)
+overall_accuracy: 0.7900 (316/400)
+unparsed_predictions: 0

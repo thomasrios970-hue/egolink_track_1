@@ -1,0 +1,43 @@
+
+
+================================================================================
+swift sft --model /data/wzw/egolink_race/model/modelscope_model/Qwen2.5-Omni-7B --dataset log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2113__ACC-pending_train_filtered.jsonl --val_dataset log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2113__ACC-pending_val_filtered.jsonl --tuner_type lora --lora_rank 8 --lora_alpha 32 --target_modules all-linear --torch_dtype bfloat16 --num_train_epochs 1 --per_device_train_batch_size 1 --per_device_eval_batch_size 1 --gradient_accumulation_steps 8 --learning_rate 1e-4 --max_length 2048 --truncation_strategy left --eval_steps 5 --save_steps 5 --save_total_limit 2 --logging_steps 5 --output_dir checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2113__ACC-pending --add_version false --warmup_ratio 0.05 --dataloader_num_workers 0 --max_steps 5
+run sh: `/opt/conda/envs/egolink/bin/python3.10 -m torch.distributed.run --nproc_per_node 4 /opt/conda/envs/egolink/lib/python3.10/site-packages/swift/cli/sft.py --model /data/wzw/egolink_race/model/modelscope_model/Qwen2.5-Omni-7B --dataset log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2113__ACC-pending_train_filtered.jsonl --val_dataset log/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2113__ACC-pending_val_filtered.jsonl --tuner_type lora --lora_rank 8 --lora_alpha 32 --target_modules all-linear --torch_dtype bfloat16 --num_train_epochs 1 --per_device_train_batch_size 1 --per_device_eval_batch_size 1 --gradient_accumulation_steps 8 --learning_rate 1e-4 --max_length 2048 --truncation_strategy left --eval_steps 5 --save_steps 5 --save_total_limit 2 --logging_steps 5 --output_dir checkpoints/track_1/STF/LoRA_STF/Qwen2.5-Omni-7B__20260509_2113__ACC-pending --add_version false --warmup_ratio 0.05 --dataloader_num_workers 0 --max_steps 5`
+
+*****************************************
+Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+*****************************************
+Traceback (most recent call last):
+  File "/opt/conda/envs/egolink/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/opt/conda/envs/egolink/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/run.py", line 922, in <module>
+    main()
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/run.py", line 918, in main
+    run(args)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/run.py", line 909, in run
+    elastic_launch(
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 260, in launch_agent
+    result = agent.run()
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/elastic/metrics/api.py", line 137, in wrapper
+    result = f(*args, **kwargs)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/elastic/agent/server/api.py", line 711, in run
+    result = self._invoke_run(role)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/elastic/agent/server/api.py", line 864, in _invoke_run
+    self._initialize_workers(self._worker_group)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/elastic/metrics/api.py", line 137, in wrapper
+    result = f(*args, **kwargs)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/elastic/agent/server/api.py", line 683, in _initialize_workers
+    self._rendezvous(worker_group)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/elastic/metrics/api.py", line 137, in wrapper
+    result = f(*args, **kwargs)
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/elastic/agent/server/api.py", line 500, in _rendezvous
+    rdzv_info = spec.rdzv_handler.next_rendezvous()
+  File "/opt/conda/envs/egolink/lib/python3.10/site-packages/torch/distributed/elastic/rendezvous/static_tcp_rendezvous.py", line 67, in next_rendezvous
+    self._store = TCPStore(  # type: ignore[call-arg]
+RuntimeError: The server socket has failed to listen on any local network address. port: 29500, useIpv6: 0, code: -98, name: EADDRINUSE, message: address already in use

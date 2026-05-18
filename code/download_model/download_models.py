@@ -1,6 +1,6 @@
 """
 脚本作用：
-从 Hugging Face 下载指定的预训练模型，并保存到本地模型目录中。
+从 Hugging Face和modelscope下载指定的预训练模型，并保存到本地模型目录中。
 
 执行逻辑：
 1. 从 `config.PATH_TO_MODEL_DIR` 读取模型保存根目录。
@@ -46,11 +46,13 @@ for model_type, models in huggingface_model.items():
 """
 modelscope_model={
     "llm_model":{
+        # 多模态本地大模型，支持视频、音频的输入
         "Qwen/Qwen2.5-Omni-7B": "Qwen2.5-Omni-7B",
+        "Qwen/Qwen3-Omni-30B-A3B-Instruct": "Qwen3-Omni-30B-A3B-Instruct",
         "Qwen/Qwen3-Omni-30B-A3B-Thinking": "Qwen3-Omni-30B-A3B-Thinking"
     },
     "audio_models":{
-        "Qwen/Qwen3-ForcedAligner-0.6B": "Qwen3-ForcedAligner-0.6B",
+        "Qwen/Qwen3-ForcedAligner-0.6B": "Qwen3-ForcedAligner-0.6B", #对齐字幕用
     },
 }
 
